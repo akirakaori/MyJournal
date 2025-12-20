@@ -1,0 +1,86 @@
+﻿@page "/login"
+@using MudBlazor
+
+@inject MyJournal.Services.AppState AppState
+@inject NavigationManager NavManager
+
+<MudGrid Justify="Justify.Center">
+    <MudItem xs="12" sm="6" md="4">
+        <MudPaper Class="pa-6" Elevation="6">
+
+            <MudText Typo="Typo.h5" Align="Align.Center" Class="mb-4">
+                Login
+            </MudText>
+
+            <MudForm @ref="_form" Spacing="6">
+
+                <MudTextField T="string"
+                              Label="Username"
+                              @bind-Value="_username"
+                              Required="true"
+                              RequiredError="Username is required" />
+
+                <MudTextField T="string"
+                              Label="Password"
+                              @bind-Value="_password"
+                              InputType="InputType.Password"
+                              Required="true"
+                              RequiredError="Password is required" />
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           FullWidth="true"
+                           Class="mt-4"
+                           Disabled="@_isBusy"
+                           OnClick="HandleLogin">
+                    Login
+                </MudButton>
+
+                @if (_invalidCredentials)
+                {
+                    <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mt-4">
+                        Invalid credentials
+                    </MudAlert>
+                }
+
+            </MudForm>
+
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private MudForm? _form;
+
+    private string _username = string.Empty;
+    private string _password = string.Empty;
+
+    private bool _isBusy;
+    private bool _invalidCredentials;
+
+    private async Task HandleLogin()
+    {
+        _invalidCredentials = false;
+        _isBusy = true;
+
+        await _form!.Validate();
+
+        if (!_form.IsValid)
+        {
+            _isBusy = false;
+            return;
+        }
+
+        if (_username == "1" && _password == "1")
+        {
+            AppState.Login();
+            NavManager.NavigateTo("/dashboard", replace: true);
+        }
+        else
+        {
+            _invalidCredentials = true;
+        }
+
+        _isBusy = false;
+    }
+}

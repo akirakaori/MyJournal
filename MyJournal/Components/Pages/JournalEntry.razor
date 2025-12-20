@@ -1,0 +1,643 @@
+﻿@* Pages/TextInput.razor *@
+@page "/journalentry"
+@using JournalMaui.Services
+@using JournalMaui.Models
+@inject JournalDatabases Db
+
+<div class="page">
+    <header class="header">
+        <div>
+            <h1 class="title">Journal</h1>
+            <p class="subtitle">Write one entry per day.</p>
+        </div>
+
+        @* <div class="meta">
+            <div class="metaItem">
+                <span class="metaLabel">Created</span>
+                <span class="metaValue">@CreatedAtText</span>
+            </div>
+            <div class="metaDivider"></div>
+            <div class="metaItem">
+                <span class="metaLabel">Updated</span>
+                <span class="metaValue">@UpdatedAtText</span>
+            </div>
+        </div> *@
+    </header>
+
+    <section class="toolbarCard">
+        <div class="toolbarRow">
+            <div class="dateChip">
+                <span class="dot"></span>
+                <div class="dateText">
+                    <span class="dateLabel">Selected date</span>
+                    <span class="dateValue">@SelectedDate.ToString("dddd, dd MMM yyyy")</span>
+                </div>
+
+
+
+
+                <div class="metaItem">
+                    <span class="metaLabel">Created</span>
+                    <span class="metaValue">@CreatedAtText</span>
+                </div>
+                <div class="metaDivider"></div>
+                <div class="metaItem">
+                    <span class="metaLabel">Updated</span>
+                    <span class="metaValue">@UpdatedAtText</span>
+                </div>
+
+
+
+            </div>
+
+            <div class="btnGroup">
+
+
+                <button class="btn btnPrimary" @onclick="StartSave" disabled="@IsBusy" title="Save entry (will ask for title)">
+                    <span class="btnIcon">💾</span>
+                    <span>Save</span>
+                </button>
+
+                <button class="btn btnDanger" @onclick="Delete" disabled="@IsBusy" title="Delete entry (date+title if title is set)">
+                    <span class="btnIcon">🗑</span>
+                    <span>Delete</span>
+                </button>
+            </div>
+        </div>
+
+        @* @if (IsBusy)
+        {
+            <div class="busyRow" aria-live="polite">
+                <div class="spinner" role="status" aria-label="Working"></div>
+                <span class="busyText">Working…</span>
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(Status))
+        {
+            <div class="status" aria-live="polite">@Status</div>
+        } *@
+    </section>
+
+    <main class="contentGrid">
+        <section class="editorCard">
+            <div class="cardHeader">
+                <h2 class="cardTitle">Entry</h2>
+                <span class="hint">
+                    @if (!string.IsNullOrWhiteSpace(CurrentTitle))
+                    {
+                        <span>Title: <b>@CurrentTitle</b></span>
+                    }
+                    else
+                    {
+                        <span>No title yet</span>
+                    }
+                </span>
+            </div>
+
+            <textarea class="editor"
+                      @bind="Content"
+                      placeholder="Start writing…"></textarea>
+
+            <div class="editorFooter">
+                <span class="muted">Characters: @((Content ?? string.Empty).Length)</span>
+            </div>
+        </section>
+    </main>
+</div>
+
+@* -------- Title Modal -------- *@
+@if (ShowTitleModal)
+{
+    <div class="modalOverlay" @onclick="CloseTitleModal">
+        <div class="modalCard" @onclick:stopPropagation="true">
+            <div class="modalHeader">
+                <h3 class="modalTitle">Set a title</h3>
+                <button class="modalX" @onclick="CloseTitleModal" title="Close">✕</button>
+            </div>
+
+            <div class="modalBody">
+                <div class="modalField">
+                    <label class="modalLabel">Title</label>
+                    <input class="modalInput"
+                           @bind="TitleInput"
+                           placeholder="e.g., My day, Study notes, Goals..."
+                           @onkeydown="HandleTitleKeyDown" />
+                    @* <div class="modalHelp">This entry will be saved under <b>@SelectedDate.ToString("yyyy-MM-dd")</b> + this title.</div> *@
+                </div>
+            </div>
+
+            <div class="modalFooter">
+                <button class="btn btnGhost" @onclick="CloseTitleModal" disabled="@IsBusy">Cancel</button>
+                <button class="btn btnPrimary" @onclick="ConfirmSave" disabled="@IsBusy">Save</button>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    :root {
+        --bg: #0b1020;
+        --card: rgba(255,255,255,0.06);
+        --card2: rgba(255,255,255,0.08);
+        --border: rgba(255,255,255,0.10);
+        --text: rgba(255,255,255,0.92);
+        --muted: rgba(255,255,255,0.62);
+        --muted2: rgba(255,255,255,0.45);
+        --primary: #6ea8fe;
+        --primary2: #3b82f6;
+        --danger: #ef4444;
+        --shadow: 0 12px 40px rgba(0,0,0,0.35);
+        --radius: 16px;
+    }
+
+    .meta {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 9px;
+        box-shadow: var(--shadow);
+        white-space: nowrap;
+        margin-bottom: 8px;
+    }
+
+    .metaItem {
+        display: grid;
+        gap: 2px;
+    }
+
+    .metaLabel {
+        font-size: 11px;
+        color: var(--muted2);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+    }
+
+    .metaValue {
+        font-size: 13px;
+        color: var(--text);
+    }
+
+    .metaDivider {
+        width: 1px;
+        height: 24px;
+        background: var(--border);
+    }
+
+    .toolbarCard {
+        background: linear-gradient(180deg, var(--card2), var(--card));
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 14px;
+        margin-bottom: 16px;
+    }
+
+    .toolbarRow {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .dateChip {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: rgba(0,0,0,0.20);
+    }
+
+    .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, #a7f3d0, #22c55e);
+        box-shadow: 0 0 0 3px rgba(34,197,94,0.15);
+        flex: 0 0 auto;
+    }
+
+    .dateText {
+        display: grid;
+        gap: 2px;
+        line-height: 1.2;
+    }
+
+    .dateLabel {
+        font-size: 11px;
+        color: var(--muted2);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+    }
+
+    .dateValue {
+        font-size: 13px;
+        color: var(--text);
+    }
+
+    .btnGroup {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 12px;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        background: rgba(0,0,0,0.18);
+        color: var(--text);
+        cursor: pointer;
+        transition: transform .04s ease, background .15s ease, border-color .15s ease, opacity .15s ease;
+        user-select: none;
+        font-weight: 600;
+        font-size: 13px;
+    }
+
+        .btn:hover:not(:disabled) {
+            background: rgba(255,255,255,0.08);
+            border-color: rgba(255,255,255,0.18);
+        }
+
+        .btn:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+
+        .btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
+    .btnIcon {
+        font-size: 14px;
+        line-height: 1;
+        opacity: 0.9;
+    }
+
+    .btnPrimary {
+        background: linear-gradient(180deg, rgba(110,168,254,0.25), rgba(59,130,246,0.18));
+        border-color: rgba(110,168,254,0.35);
+    }
+
+        .btnPrimary:hover:not(:disabled) {
+            background: linear-gradient(180deg, rgba(110,168,254,0.35), rgba(59,130,246,0.22));
+            border-color: rgba(110,168,254,0.5);
+        }
+
+    .btnDanger {
+        background: linear-gradient(180deg, rgba(239,68,68,0.22), rgba(239,68,68,0.14));
+        border-color: rgba(239,68,68,0.35);
+    }
+
+        .btnDanger:hover:not(:disabled) {
+            background: linear-gradient(180deg, rgba(239,68,68,0.30), rgba(239,68,68,0.18));
+            border-color: rgba(239,68,68,0.55);
+        }
+
+    .busyRow {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px dashed rgba(255,255,255,0.12);
+    }
+
+    .busyText {
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .spinner {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        border: 2px solid rgba(255,255,255,0.22);
+        border-top-color: rgba(255,255,255,0.75);
+        animation: spin 0.9s linear infinite;
+    }
+
+    .status {
+        margin-top: 10px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: rgba(59,130,246,0.10);
+        border: 1px solid rgba(110,168,254,0.25);
+        color: rgba(255,255,255,0.88);
+        font-weight: 650;
+        font-size: 13px;
+    }
+
+    .contentGrid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+
+    .editorCard {
+        background: linear-gradient(180deg, var(--card2), var(--card));
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+    }
+
+    .cardHeader {
+        padding: 14px 14px 10px;
+        border-bottom: 1px solid rgba(255,255,255,0.10);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .cardTitle {
+        margin: 0;
+        font-size: 14px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(255,255,255,0.82);
+    }
+
+    .hint {
+        font-size: 12px;
+        color: var(--muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 60%;
+    }
+
+    .editor {
+        width: 100%;
+        min-height: 420px;
+        resize: vertical;
+        padding: 14px;
+        border: 0;
+        outline: none;
+        background: rgba(0,0,0,0.18);
+        color: var(--text);
+        font-size: 14px;
+        line-height: 1.55;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+        .editor::placeholder {
+            color: rgba(255,255,255,0.35);
+        }
+
+    .editorFooter {
+        padding: 10px 14px;
+        border-top: 1px solid rgba(255,255,255,0.10);
+        background: rgba(0,0,0,0.12);
+    }
+
+    .muted {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    /* Modal */
+    .modalOverlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.55);
+        display: grid;
+        place-items: center;
+        z-index: 9999;
+        padding: 16px;
+    }
+
+    .modalCard {
+        width: min(520px, 100%);
+        background: linear-gradient(180deg, rgba(20,24,40,0.98), rgba(10,14,24,0.98));
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 16px;
+        box-shadow: 0 18px 70px rgba(0,0,0,0.6);
+        overflow: hidden;
+    }
+
+    .modalHeader {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 14px 10px;
+        border-bottom: 1px solid rgba(255,255,255,0.10);
+    }
+
+    .modalTitle {
+        margin: 0;
+        font-size: 14px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(255,255,255,0.86);
+    }
+
+    .modalX {
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(0,0,0,0.2);
+        color: rgba(255,255,255,0.85);
+        border-radius: 10px;
+        padding: 6px 10px;
+        cursor: pointer;
+        font-weight: 800;
+    }
+
+    .modalBody {
+        padding: 14px;
+    }
+
+    .modalField {
+        display: grid;
+        gap: 8px;
+    }
+
+    .modalLabel {
+        font-size: 11px;
+        color: rgba(255,255,255,0.55);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+    }
+
+    .modalInput {
+        padding: 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(0,0,0,0.22);
+        color: rgba(255,255,255,0.92);
+        outline: none;
+        font-weight: 650;
+    }
+
+    .modalHelp {
+        font-size: 12px;
+        color: rgba(255,255,255,0.60);
+        line-height: 1.35;
+    }
+
+    .modalFooter {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        padding: 12px 14px 14px;
+        border-top: 1px solid rgba(255,255,255,0.10);
+        background: rgba(0,0,0,0.10);
+    }
+
+</style>
+
+@code {
+    private DateTime SelectedDate = DateTime.Today;
+    private string Content = "";
+    private bool IsBusy = false;
+    private string Status = "";
+
+    private DateTime? CreatedAt;
+    private DateTime? UpdatedAt;
+
+    // NEW: title state
+    private string CurrentTitle = "";
+    private bool ShowTitleModal = false;
+    private string TitleInput = "";
+
+    private string CreatedAtText => CreatedAt?.ToString("yyyy-MM-dd HH:mm") ?? "-";
+    private string UpdatedAtText => UpdatedAt?.ToString("yyyy-MM-dd HH:mm") ?? "-";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        IsBusy = true;
+        Status = "";
+        try
+        {
+            // loads latest entry for that date (date-only)
+            var entry = await Db.GetByDateAsync(SelectedDate);
+            if (entry is null)
+            {
+                Content = "";
+                CurrentTitle = "";
+                CreatedAt = null;
+                UpdatedAt = null;
+                Status = "No entry for this date. Start writing!";
+            }
+            else
+            {
+                Content = entry.Content ?? "";
+                CurrentTitle = entry.Title ?? "";
+                CreatedAt = entry.CreatedAt;
+                UpdatedAt = entry.UpdatedAt;
+                Status = "Loaded.";
+            }
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    // NEW: open title prompt
+    private Task StartSave()
+    {
+        Status = "";
+        TitleInput = string.IsNullOrWhiteSpace(CurrentTitle) ? "" : CurrentTitle;
+        ShowTitleModal = true;
+        return Task.CompletedTask;
+    }
+
+    private void CloseTitleModal()
+    {
+        ShowTitleModal = false;
+    }
+
+    private async Task ConfirmSave()
+    {
+        var title = (TitleInput ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            Status = "Please enter a title.";
+            return;
+        }
+
+        ShowTitleModal = false;
+        await SaveWithTitle(title);
+    }
+
+    private async Task SaveWithTitle(string title)
+    {
+        IsBusy = true;
+        Status = "";
+        try
+        {
+            await Db.SaveAsync(SelectedDate, title, Content);
+
+            // reload by date only
+            var entry = await Db.GetByDateAsync(SelectedDate);
+
+            CurrentTitle = entry?.Title ?? title;
+            CreatedAt = entry?.CreatedAt;
+            UpdatedAt = entry?.UpdatedAt;
+
+            Status = "Saved.";
+        }
+        catch (Exception ex)
+        {
+            Status = $"Save failed: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+
+    private async Task Delete()
+    {
+        IsBusy = true;
+        Status = "";
+        try
+        {
+            await Db.DeleteAsync(SelectedDate);
+
+            Content = "";
+            CurrentTitle = "";
+            CreatedAt = null;
+            UpdatedAt = null;
+
+            Status = "Deleted.";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+
+    private async Task HandleTitleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await ConfirmSave();
+        }
+        else if (e.Key == "Escape")
+        {
+            CloseTitleModal();
+        }
+    }
+}

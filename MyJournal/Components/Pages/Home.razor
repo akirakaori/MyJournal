@@ -1,0 +1,128 @@
+﻿@page "/"
+@using MudBlazor
+@inject NavigationManager NavManager
+@inject MyJournal.Services.AppState AppState
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-4">
+
+    <MudPaper Elevation="2" Class="pa-6 mb-4 mud-theme-surface">
+        <MudText Typo="Typo.h4" Class="mb-2">MyJournal.exe</MudText>
+        <MudText Typo="Typo.body1">
+            A secure daily journal with moods, tags, streaks, analytics, and PDF export — stored locally in SQLite.
+        </MudText>
+    </MudPaper>
+
+    @if (!AppState.IsLoggedIn)
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Class="mb-4">
+            <div class="d-flex align-center justify-space-between flex-wrap gap-2" style="width:100%">
+                <div>
+                    <b>Locked.</b> Please log in to view and write your journal.
+                </div>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GoLogin">
+                    Login
+                </MudButton>
+            </div>
+        </MudAlert>
+    }
+    else
+    {
+        <MudGrid Spacing="3">
+
+            @* <MudItem xs="12" md="6" lg="4">
+                <MudCard Class="h-100">
+                    <MudCardContent>
+                        <MudText Typo="Typo.h6" Class="mb-2">Today’s Entry</MudText>
+                        <MudText Typo="Typo.body2" Class="mb-3">
+                            Create/update your single entry for today with Markdown or rich-text.
+                        </MudText>
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="GoToday">
+                            Write / Edit
+                        </MudButton>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" md="6" lg="4">
+                <MudCard Class="h-100">
+                    <MudCardContent>
+                        <MudText Typo="Typo.h6" Class="mb-2">Calendar View</MudText>
+                        <MudText Typo="Typo.body2" Class="mb-3">
+                            Jump to any past date quickly and open entries by day.
+                        </MudText>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="GoCalendar">
+                            Open Calendar
+                        </MudButton>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" md="6" lg="4">
+                <MudCard Class="h-100">
+                    <MudCardContent>
+                        <MudText Typo="Typo.h6" Class="mb-2">Timeline</MudText>
+                        <MudText Typo="Typo.body2" Class="mb-3">
+                            Paginated list of entries with quick preview and navigation.
+                        </MudText>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="GoTimeline">
+                            View Timeline
+                        </MudButton>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" md="6" lg="4">
+                <MudCard Class="h-100">
+                    <MudCardContent>
+                        <MudText Typo="Typo.h6" Class="mb-2">Search &amp; Filter</MudText>
+                        <MudText Typo="Typo.body2" Class="mb-3">
+                            Search by title/content and filter by date range, mood, and tags.
+                        </MudText>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="GoSearch">
+                            Search Entries
+                        </MudButton>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" md="6" lg="4">
+                <MudCard Class="h-100">
+                    <MudCardContent>
+                        <MudText Typo="Typo.h6" Class="mb-2">Dashboard &amp; Analytics</MudText>
+                        <MudText Typo="Typo.body2" Class="mb-3">
+                            Mood distribution, streaks, most-used tags, and word-count trends.
+                        </MudText>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Dark" OnClick="GoDashboard">
+                            Open Dashboard
+                        </MudButton>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" md="6" lg="4">
+                <MudCard Class="h-100">
+                    <MudCardContent>
+                        <MudText Typo="Typo.h6" Class="mb-2">Export PDF</MudText>
+                        <MudText Typo="Typo.body2" Class="mb-3">
+                            Export journals by date range to PDF for backup or sharing.
+                        </MudText>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Success" OnClick="GoExport">
+                            Export
+                        </MudButton>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem> *@
+
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+    private void GoLogin() => NavManager.NavigateTo("/login");
+    private void GoToday() => NavManager.NavigateTo("/entry/today");
+    private void GoCalendar() => NavManager.NavigateTo("/calendar");
+    private void GoTimeline() => NavManager.NavigateTo("/timeline");
+    private void GoSearch() => NavManager.NavigateTo("/search");
+    private void GoDashboard() => NavManager.NavigateTo("/dashboard");
+    private void GoExport() => NavManager.NavigateTo("/export");
+}

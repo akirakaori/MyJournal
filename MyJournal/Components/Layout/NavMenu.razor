@@ -1,0 +1,145 @@
+﻿@inject MyJournal.Services.AppState AppState
+@inject NavigationManager NavManager
+
+@implements IDisposable
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">MyJournal.exe</a>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable sidenav">
+    <nav class="nav flex-column sidenav-content">
+
+        @if (!AppState.IsLoggedIn)
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link nav-item-link" href="login">
+                    <i class="bi bi-box-arrow-in-right"></i>
+                    <span>Login</span>
+                </NavLink>
+            </div>
+        }
+        else
+        {
+            <!-- MAIN NAV -->
+            <div class="nav-main">
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link nav-item-link" href="dashboard">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Dashboard</span>
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link nav-item-link" href="journalentry">
+                        <i class="bi bi-journal-text"></i>
+                        <span>Write Journals</span>
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link nav-item-link" href="viewjournals">
+                        <i class="bi bi-book"></i>
+                        <span>View Journals</span>
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link nav-item-link" href="customTag">
+                        <i class="bi bi-tags"></i>
+                        <span>Custom Tags</span>
+                    </NavLink>
+                </div>
+            </div>
+
+            <!-- LOGOUT AT BOTTOM -->
+            <div class="nav-footer px-3">
+                <button class="nav-link nav-item-link btn btn-link logout-btn"
+                        @onclick="Logout"
+                        type="button">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Logout</span>
+                </button>
+            </div>
+        }
+    </nav>
+</div>
+
+<style>
+    /* Sidebar layout */
+    .sidenav {
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .sidenav-content {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .nav-main {
+        flex-grow: 1;
+        padding-top: 10px;
+    }
+
+    .nav-footer {
+        margin-top: auto;
+        padding-bottom: 16px;
+        border-top: 1px solid rgba(255,255,255,0.08);
+    }
+
+    /* Nav links */
+    .nav-item-link {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 600;
+        border-radius: 8px;
+        padding: 10px 12px;
+        transition: background 0.15s ease;
+    }
+
+        .nav-item-link i {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .nav-item-link:hover {
+            background: rgba(255,255,255,0.08);
+        }
+
+    /* Logout emphasis */
+    .logout-btn {
+        width: 100%;
+        color: #f87171;
+    }
+
+        .logout-btn:hover { 
+            background: rgba(248,113,113,0.12);
+            color: #fecaca;
+        }
+</style>
+
+@code {
+    protected override void OnInitialized()
+    {
+        AppState.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        AppState.OnChange -= StateHasChanged;
+    }
+
+    private void Logout()
+    {
+        AppState.Logout();
+        NavManager.NavigateTo("/login", replace: true);
+    }
+}

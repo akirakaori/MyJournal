@@ -1,0 +1,46 @@
+﻿@using MudBlazor
+@inherits LayoutComponentBase
+@inject MyJournal.Services.AppState AppState
+
+<MudThemeProvider Theme="@_theme" IsDarkMode="@AppState.IsDarkMode" />
+<MudPopoverProvider />
+<MudSnackbarProvider />
+
+<div class="page mud-theme-background">
+    <div class="sidebar mud-theme-surface">
+        <NavMenu />
+    </div>
+
+    <main class="mud-theme-background">
+        <div class="top-row px-4 topbar">
+            <MudSpacer />
+
+            <MudIconButton Icon="@(AppState.IsDarkMode? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+                           Color="Color.Inherit"
+                           Size="Size.Medium"
+                           OnClick="@AppState.ToggleDarkMode" />
+
+            @* <a class="ml-2 about-link" href="https://learn.microsoft.com/aspnet/core/" target="_blank">
+                About
+            </a> *@
+        </div>
+
+        <article class="content px-4 mud-theme-background">
+            @Body
+        </article>
+    </main>
+</div>
+
+@code {
+    private readonly MudTheme _theme = new();
+
+    protected override void OnInitialized()
+    {
+        AppState.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        AppState.OnChange -= StateHasChanged;
+    }
+}

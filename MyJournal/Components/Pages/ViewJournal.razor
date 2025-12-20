@@ -1,0 +1,505 @@
+﻿@* Pages/ViewJournals.razor *@
+@page "/viewjournals"
+@using JournalMaui.Services
+@using JournalMaui.Models
+@inject JournalDatabases Db
+@inject NavigationManager NavigationManager
+
+<div class="page">
+    <header class="header">
+        <div>
+            <h1 class="title">Hello Ashika 👋</h1>
+            <p class="subtitle">Here are all your saved journal entries.</p>
+        </div>
+    </header>
+
+    <section class="card">
+        <div class="cardHeader">
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <h2 class="cardTitle">Saved Journals</h2>
+                <span class="pill">@FilteredEntries.Count</span>
+            </div>
+
+            @* ✅ Search bar (search by Title) *@
+            <input class="search"
+                   type="search"
+                   placeholder="Search by title…"
+                   value="@SearchTitle"
+                   @oninput="OnSearchInput" />
+        </div>
+
+        @if (IsLoading)
+        {
+            <div class="loading">
+                <div class="spinner"></div>
+                <span>Loading journals…</span>
+            </div>
+        }
+        else if (FilteredEntries.Count == 0)
+        {
+            <div class="empty">
+                <div class="emptyIcon">📓</div>
+                <div>
+                    <div class="emptyTitle">No matching journals</div>
+                    <div class="emptySub">Try a different title keyword.</div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <ul class="list">
+                @foreach (var e in FilteredEntries)
+                {
+                    <li class="item">
+                        <div class="itemHeader">
+                            <div style="display:flex; flex-direction:column; gap:2px;">
+                                @* ✅ Show Title (Heading) *@
+                                <span class="heading">@GetTitle(e.Title)</span>
+
+                                @* Keeping date shown too *@
+                                <span class="date">@e.DateKey</span>
+                            </div>
+
+                            <div class="tabs">
+                                <button class="iconBtn"
+                                        type="button"
+                                        title="Edit"
+                                        aria-label="Edit"
+                                        @onclick="() => Edit(e.DateKey)">
+                                    ✏️
+                                </button>
+
+                                <button class="iconBtn danger"
+                                        type="button"
+                                        title="Delete"
+                                        aria-label="Delete"
+                                        @onclick="() => PromptDelete(e.DateKey)">
+                                    🗑️
+                                </button>
+                            </div>
+                        </div>
+
+                        @* ✅ Show content under title *@
+                        @* <div class="content">
+                            @Trunc(GetBody(e.Content), 260)
+                        </div> *@
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+
+    @if (ShowDeleteConfirm)
+    {
+        <div class="overlay" @onclick="CancelDelete">
+            <div class="dialog" @onclick:stopPropagation="true">
+                <div class="dialogTitle">Delete this journal?</div>
+                <div class="dialogText">
+                    This will permanently delete the entry for <b>@PendingDeleteDateKey</b>.
+                </div>
+
+                <div class="dialogActions">
+                    <button class="btn ghost" type="button" @onclick="CancelDelete">Cancel</button>
+                    <button class="btn danger" type="button" @onclick="ConfirmDelete" disabled="@IsDeleting">
+                        @(IsDeleting ? "Deleting..." : "Delete")
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    :root {
+        --bg: #0b1020;
+        --card: rgba(255,255,255,0.06);
+        --card2: rgba(255,255,255,0.08);
+        --border: rgba(255,255,255,0.12);
+        --text: rgba(255,255,255,0.92);
+        --muted: rgba(255,255,255,0.6);
+        --primary: #6ea8fe;
+        --shadow: 0 12px 40px rgba(0,0,0,0.35);
+        --radius: 16px;
+    }
+
+    .card {
+        background: linear-gradient(180deg, var(--card2), var(--card));
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+    }
+
+    .cardHeader {
+        padding: 14px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .cardTitle {
+        margin: 0;
+        font-size: 14px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .pill {
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        background: rgba(0,0,0,0.2);
+        border: 1px solid var(--border);
+    }
+
+    /* ✅ Search input */
+    .search {
+        width: min(320px, 100%);
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(0,0,0,0.18);
+        color: rgba(255,255,255,0.92);
+        outline: none;
+        font-size: 13px;
+    }
+
+        .search::placeholder {
+            color: rgba(255,255,255,0.45);
+        }
+
+        .search:focus {
+            border-color: rgba(110, 168, 254, 0.55);
+            box-shadow: 0 0 0 3px rgba(110, 168, 254, 0.18);
+        }
+
+    .list {
+        list-style: none;
+        padding: 14px;
+        margin: 0;
+        display: grid;
+        gap: 12px;
+    }
+
+    .item {
+        padding: 12px;
+        border-radius: 14px;
+        background: rgba(0,0,0,0.18);
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .itemHeader {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 6px;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    /* ✅ Title (Heading) style */
+    .heading {
+        font-weight: 900;
+        font-size: 15px;
+        color: rgba(255,255,255,0.92);
+        line-height: 1.2;
+    }
+
+    .date {
+        font-weight: 700;
+        font-size: 12px;
+        color: rgba(255,255,255,0.62);
+    }
+
+    .content {
+        font-size: 13px;
+        line-height: 1.45;
+        color: var(--muted);
+    }
+
+    .loading {
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--muted);
+    }
+
+    .spinner {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 2px solid rgba(255,255,255,0.25);
+        border-top-color: rgba(255,255,255,0.75);
+        animation: spin 0.9s linear infinite;
+    }
+
+    .empty {
+        padding: 20px;
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 12px;
+        align-items: center;
+        color: var(--muted);
+    }
+
+    .emptyIcon {
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        display: grid;
+        place-items: center;
+        background: rgba(0,0,0,0.2);
+        border: 1px solid var(--border);
+        font-size: 20px;
+    }
+
+    .emptyTitle {
+        font-weight: 800;
+        color: rgba(255,255,255,0.85);
+    }
+
+    .emptySub {
+        font-size: 13px;
+        color: var(--muted);
+    }
+
+    .tabs {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .iconBtn {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(0,0,0,0.16);
+        color: rgba(255,255,255,0.9);
+        cursor: pointer;
+        display: grid;
+        place-items: center;
+        line-height: 1;
+        user-select: none;
+    }
+
+        .iconBtn:hover {
+            border-color: rgba(255,255,255,0.22);
+            background: rgba(0,0,0,0.22);
+        }
+
+        .iconBtn:active {
+            transform: translateY(1px);
+        }
+
+        .iconBtn.danger {
+            border-color: rgba(255,255,255,0.14);
+        }
+
+    .overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.55);
+        display: grid;
+        place-items: center;
+        padding: 18px;
+        z-index: 9999;
+    }
+
+    .dialog {
+        width: min(520px, 100%);
+        border-radius: 16px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(20, 24, 40, 0.98);
+        box-shadow: 0 18px 60px rgba(0,0,0,0.55);
+        padding: 16px;
+        color: rgba(255,255,255,0.92);
+    }
+
+    .dialogTitle {
+        font-weight: 900;
+        font-size: 16px;
+        margin-bottom: 6px;
+    }
+
+    .dialogText {
+        color: rgba(255,255,255,0.70);
+        font-size: 13px;
+        line-height: 1.45;
+        margin-bottom: 14px;
+    }
+
+    .dialogActions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+
+    .btn {
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.06);
+        color: rgba(255,255,255,0.92);
+        cursor: pointer;
+        font-weight: 700;
+        font-size: 13px;
+    }
+
+        .btn:hover {
+            background: rgba(255,255,255,0.10);
+            border-color: rgba(255,255,255,0.22);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn.ghost {
+            background: transparent;
+        }
+
+        .btn.danger {
+            background: rgba(255, 80, 80, 0.18);
+            border-color: rgba(255, 80, 80, 0.40);
+        }
+
+            .btn.danger:hover {
+                background: rgba(255, 80, 80, 0.25);
+                border-color: rgba(255, 80, 80, 0.55);
+            }
+</style>
+
+@code {
+    private List<JournalEntries> Entries = new();
+    private bool IsLoading = true;
+
+    // ✅ Search state (by Title)
+    private string SearchTitle = "";
+
+    // ✅ Delete confirmation state
+    private bool ShowDeleteConfirm = false;
+    private string PendingDeleteDateKey = "";
+    private bool IsDeleting = false;
+
+    // ✅ Computed filtered list
+    private List<JournalEntries> FilteredEntries =>
+    string.IsNullOrWhiteSpace(SearchTitle)
+        ? Entries
+        : Entries.Where(e =>
+            e.Title.Contains(SearchTitle, StringComparison.OrdinalIgnoreCase)
+          ).ToList();
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        Entries = await Db.GetRecentAsync(500);
+        IsLoading = false;
+    }
+
+    private void OnSearchInput(ChangeEventArgs e)
+    {
+        SearchTitle = e?.Value?.ToString() ?? "";
+    }
+
+    // ✅ Edit handler
+    private void Edit(string dateKey)
+    {
+        var url = $"/journalentry?date={Uri.EscapeDataString(dateKey)}";
+        NavigationManager.NavigateTo(url);
+    }
+
+    // ✅ Delete handlers
+    private void PromptDelete(string dateKey)
+    {
+        PendingDeleteDateKey = dateKey;
+        ShowDeleteConfirm = true;
+    }
+
+    private void CancelDelete()
+    {
+        ShowDeleteConfirm = false;
+        PendingDeleteDateKey = "";
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (string.IsNullOrWhiteSpace(PendingDeleteDateKey))
+            return;
+
+        IsDeleting = true;
+        try
+        {
+            if (DateTime.TryParse(PendingDeleteDateKey, out var dt))
+            {
+                await Db.DeleteAsync(dt.Date);
+                Entries = await Db.GetRecentAsync(500);
+            }
+        }
+        finally
+        {
+            IsDeleting = false;
+            ShowDeleteConfirm = false;
+            PendingDeleteDateKey = "";
+        }
+    }
+
+    // ✅ Title + Body parsing (works for Markdown or plain text)
+    // Rule:
+    // - Title = first non-empty line (leading # removed)
+    // - Body  = rest of text (excluding that title line)
+    private static string GetTitle(string? content)
+    {
+        content ??= "";
+        var lines = content.Replace("\r", "").Split('\n');
+        foreach (var raw in lines)
+        {
+            var line = (raw ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            // remove markdown heading markers like "#", "##"
+            while (line.StartsWith("#")) line = line.Substring(1).Trim();
+
+            return string.IsNullOrWhiteSpace(line) ? "Untitled" : line;
+        }
+        return "Untitled";
+    }
+
+    private static string GetBody(string? content)
+    {
+        content ??= "";
+        var lines = content.Replace("\r", "").Split('\n').ToList();
+
+        // find title line index
+        var titleIndex = -1;
+        for (int i = 0; i < lines.Count; i++)
+        {
+            var line = (lines[i] ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            titleIndex = i;
+            break;
+        }
+
+        if (titleIndex < 0) return "";
+
+        // remove the title line
+        lines.RemoveAt(titleIndex);
+
+        // trim leading empty lines after removing title
+        while (lines.Count > 0 && string.IsNullOrWhiteSpace(lines[0]))
+            lines.RemoveAt(0);
+
+        return string.Join("\n", lines).Trim();
+    }
+
+    private static string Trunc(string? s, int n)
+    {
+        s ??= "";
+        s = s.Replace("\r", " ").Replace("\n", " ");
+        return s.Length <= n ? s : s.Substring(0, n) + "...";
+    }
+}
