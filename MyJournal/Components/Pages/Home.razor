@@ -8,7 +8,7 @@
     <MudPaper Elevation="2" Class="pa-6 mb-4 mud-theme-surface">
         <MudText Typo="Typo.h4" Class="mb-2">MyJournal.exe</MudText>
         <MudText Typo="Typo.body1">
-            A secure daily journal with moods, tags, streaks, analytics, and PDF export — stored locally in SQLiteeeeee.
+            A secure daily journal with moods, tags, streaks, analytics, and PDF export — stored locally in SQLite.
         </MudText>
     </MudPaper>
 
@@ -29,7 +29,7 @@
     {
         <MudGrid Spacing="3">
 
-            @* <MudItem xs="12" md="6" lg="4">
+            <MudItem xs="12" md="6" lg="4">
                 <MudCard Class="h-100">
                     <MudCardContent>
                         <MudText Typo="Typo.h6" Class="mb-2">Today’s Entry</MudText>
@@ -111,18 +111,8 @@
                         </MudButton>
                     </MudCardContent>
                 </MudCard>
-            </MudItem> *@
+            </MudItem>
 
         </MudGrid>
     }
 </MudContainer>
-
-@code {
-    private void GoLogin() => NavManager.NavigateTo("/login");
-    private void GoToday() => NavManager.NavigateTo("/entry/today");
-    private void GoCalendar() => NavManager.NavigateTo("/calendar");
-    private void GoTimeline() => NavManager.NavigateTo("/timeline");
-    private void GoSearch() => NavManager.NavigateTo("/search");
-    private void GoDashboard() => NavManager.NavigateTo("/dashboard");
-    private void GoExport() => NavManager.NavigateTo("/export");
-}
