@@ -1,30 +1,34 @@
 ﻿@page "/viewjournals"
-@using JournalMaui.Services
 @using JournalMaui.Models
-@inject JournalDatabases Db
-@inject NavigationManager NavigationManager
 
 <div class="page">
-    <header class="header">
-        <div>
-            <h1 class="title">Hello Ashika 👋</h1>
-            <p class="subtitle">Here are all your saved journal entries.</p>
-        </div>
-    </header>
+
 
     <section class="card">
         <div class="cardHeader">
             <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                 <h2 class="cardTitle">Saved Journals</h2>
-                <span class="pill">@FilteredEntries.Count</span>
+                <span class="pill">@FilteredCount</span>
             </div>
 
-            @* ✅ Search bar (search by Title) *@
-            <input class="search"
-                   type="search"
-                   placeholder="Search by title…"
-                   value="@SearchTitle"
-                   @oninput="OnSearchInput" />
+            <div class="controls">
+                <input class="search"
+                       type="search"
+                       placeholder="Search by title…"
+                       value="@SearchTitle"
+                       @oninput="OnSearchInput" />
+
+                <select class="select" value="@PageSize" @onchange="OnPageSizeChanged" title="Rows per page">
+                    <option value="5">5 / page</option>
+                    <option value="10">10 / page</option>
+                    <option value="15">15 / page</option>
+                    <option value="20">20 / page</option>
+                </select>
+
+                <button class="sortBtn" type="button" @onclick="ToggleSort" title="Toggle sort by date">
+                    @(SortDescending ? "Newest ↓" : "Oldest ↑")
+                </button>
+            </div>
         </div>
 
         @if (IsLoading)
@@ -34,7 +38,7 @@
                 <span>Loading journals…</span>
             </div>
         }
-        else if (FilteredEntries.Count == 0)
+        else if (PagedEntries.Count == 0)
         {
             <div class="empty">
                 <div class="emptyIcon">📓</div>
@@ -46,45 +50,77 @@
         }
         else
         {
-            <ul class="list">
-                @foreach (var e in FilteredEntries)
-                {
-                    <li class="item">
-                        <div class="itemHeader">
-                            <div style="display:flex; flex-direction:column; gap:2px;">
-                                @* ✅ Show Title (Heading) *@
-                                <span class="heading">@GetTitle(e.Title)</span>
+            <div class="tableWrap">
+                <table class="journalsTable">
 
-                                @* Keeping date shown too *@
-                                <span class="date">@e.DateKey</span>
-                            </div>
+                    <thead>
+                        <tr>
+                            <th @onclick="() => SortBy(nameof(JournalEntries.DateKey))"
+                                class="sortable @(SortColumn == nameof(JournalEntries.DateKey) ? "active" : "")">
+                                Date
+                                @SortIcon(nameof(JournalEntries.DateKey))
+                            </th>
 
-                            <div class="tabs">
-                                <button class="iconBtn"
-                                        type="button"
-                                        title="Edit"
-                                        aria-label="Edit"
-                                        @onclick="() => Edit(e.DateKey)">
-                                    ✏️
-                                </button>
+                            <th @onclick="() => SortBy(nameof(JournalEntries.Title))"
+                                class="sortable @(SortColumn == nameof(JournalEntries.Title) ? "active" : "")">
+                                Title
+                                @SortIcon(nameof(JournalEntries.Title))
+                            </th>
 
-                                <button class="iconBtn danger"
-                                        type="button"
-                                        title="Delete"
-                                        aria-label="Delete"
-                                        @onclick="() => PromptDelete(e.DateKey)">
-                                    🗑️
-                                </button>
-                            </div>
-                        </div>
+                            <th>Content Preview</th>
+                            <th style="text-align:right;">Actions</th>
+                        </tr>
+                    </thead>
 
-                        @* ✅ Show content under title *@
-                        <div class="content">
-                            @Trunc(GetBody(e.Content), 260)
-                        </div>
-                    </li>
-                }
-            </ul>
+                    <tbody>
+                        @foreach (var e in PagedEntries)
+                        {
+                            <tr>
+                                <td class="td-date">@e.DateKey</td>
+                                <td class="td-title">@GetTitle(e.Title)</td>
+                                <td class="td-content">@Trunc(GetBody(e.Content), 180)</td>
+                                <td class="td-actions">
+                                    <button class="iconBtn"
+                                            type="button"
+                                            title="Edit"
+                                            aria-label="Edit"
+                                            @onclick="() => Edit(e.DateKey)">
+                                        ✏️
+                                    </button>
+
+                                    <button class="iconBtn danger"
+                                            type="button"
+                                            title="Delete"
+                                            aria-label="Delete"
+                                            @onclick="() => PromptDelete(e.DateKey)">
+                                        🗑️
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pager">
+                <div class="pagerInfo">
+                    Showing <b>@StartRow</b>–<b>@EndRow</b> of <b>@FilteredCount</b>
+                </div>
+
+                <div class="pagerBtns">
+                    <button class="pagerBtn" @onclick="PrevPage" disabled="@IsFirstPage">Prev</button>
+
+                    @foreach (var p in PageNumbersToShow)
+                    {
+                        <button class="pagerBtn @(p == CurrentPage ? "active" : "")"
+                                @onclick="() => GoToPage(p)">
+                            @p
+                        </button>
+                    }
+
+                    <button class="pagerBtn" @onclick="NextPage" disabled="@IsLastPage">Next</button>
+                </div>
+            </div>
         }
     </section>
 
@@ -121,6 +157,20 @@
         --radius: 16px;
     }
 
+    .sortable {
+        cursor: pointer;
+        user-select: none;
+    }
+
+        .sortable:hover {
+            background: rgba(255,255,255,0.06);
+        }
+
+        .sortable.active {
+            color: #6ea8fe;
+        }
+
+
     .card {
         background: linear-gradient(180deg, var(--card2), var(--card));
         border: 1px solid var(--border);
@@ -154,7 +204,14 @@
         border: 1px solid var(--border);
     }
 
-    /* ✅ Search input */
+    .controls {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
     .search {
         width: min(320px, 100%);
         padding: 10px 12px;
@@ -175,48 +232,100 @@
             box-shadow: 0 0 0 3px rgba(110, 168, 254, 0.18);
         }
 
-    .list {
-        list-style: none;
-        padding: 14px;
-        margin: 0;
-        display: grid;
-        gap: 12px;
-    }
-
-    .item {
-        padding: 12px;
-        border-radius: 14px;
+    .select, .sortBtn {
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.14);
         background: rgba(0,0,0,0.18);
-        border: 1px solid rgba(255,255,255,0.1);
-    }
-
-    .itemHeader {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 6px;
-        align-items: flex-start;
-        gap: 10px;
-    }
-
-    /* ✅ Title (Heading) style */
-    .heading {
-        font-weight: 900;
-        font-size: 15px;
         color: rgba(255,255,255,0.92);
-        line-height: 1.2;
-    }
-
-    .date {
-        font-weight: 700;
-        font-size: 12px;
-        color: rgba(255,255,255,0.62);
-    }
-
-    .content {
+        outline: none;
         font-size: 13px;
-        line-height: 1.45;
+        cursor: pointer;
+    }
+
+    .tableWrap {
+        overflow-x: auto;
+    }
+
+    /* ✅ avoid Bootstrap .table clash */
+    .journalsTable {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        background: transparent;
+    }
+
+        .journalsTable thead th {
+            text-align: left;
+            padding: 12px 14px;
+            color: rgba(255,255,255,0.75);
+            border-bottom: 1px solid rgba(255,255,255,0.12);
+            background: rgba(0,0,0,0.12);
+            white-space: nowrap;
+        }
+
+        .journalsTable tbody tr {
+            background: rgba(0,0,0,0.10);
+        }
+
+            .journalsTable tbody tr:hover {
+                background: rgba(255,255,255,0.06);
+            }
+
+        .journalsTable tbody td {
+            padding: 12px 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            color: rgba(255,255,255,0.88);
+            vertical-align: top;
+        }
+
+
+    .td-date {
+        font-weight: 800;
+        color: rgba(255,255,255,0.72);
+        white-space: nowrap;
+    }
+
+    .td-title {
+        font-weight: 900;
+    }
+
+    .td-content {
         color: var(--muted);
     }
+
+    .td-actions {
+        text-align: right;
+        white-space: nowrap;
+    }
+
+    .iconBtn {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(0,0,0,0.16);
+        color: rgba(255,255,255,0.9);
+        cursor: pointer;
+        display: inline-grid;
+        place-items: center;
+        line-height: 1;
+        user-select: none;
+        margin-left: 8px;
+    }
+
+        .iconBtn:hover {
+            border-color: rgba(255,255,255,0.22);
+            background: rgba(0,0,0,0.22);
+        }
+
+        .iconBtn:active {
+            transform: translateY(1px);
+        }
+
+        .iconBtn.danger {
+            border-color: rgba(255,255,255,0.14);
+        }
 
     .loading {
         padding: 20px;
@@ -265,37 +374,53 @@
         color: var(--muted);
     }
 
-    .tabs {
-        display: inline-flex;
+    .pager {
+        padding: 12px 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        border-top: 1px solid rgba(255,255,255,0.10);
+        background: rgba(0,0,0,0.10);
+    }
+
+    .pagerInfo {
+        color: rgba(255,255,255,0.72);
+        font-size: 13px;
+    }
+
+    .pagerBtns {
+        display: flex;
         gap: 8px;
         align-items: center;
+        flex-wrap: wrap;
     }
 
-    .iconBtn {
-        width: 34px;
-        height: 34px;
+    .pagerBtn {
+        padding: 8px 10px;
         border-radius: 10px;
-        border: 1px solid rgba(255,255,255,0.12);
-        background: rgba(0,0,0,0.16);
-        color: rgba(255,255,255,0.9);
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(0,0,0,0.18);
+        color: rgba(255,255,255,0.92);
         cursor: pointer;
-        display: grid;
-        place-items: center;
-        line-height: 1;
-        user-select: none;
+        font-weight: 800;
+        font-size: 13px;
     }
 
-        .iconBtn:hover {
+        .pagerBtn:hover {
+            background: rgba(255,255,255,0.08);
             border-color: rgba(255,255,255,0.22);
-            background: rgba(0,0,0,0.22);
         }
 
-        .iconBtn:active {
-            transform: translateY(1px);
+        .pagerBtn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
         }
 
-        .iconBtn.danger {
-            border-color: rgba(255,255,255,0.14);
+        .pagerBtn.active {
+            border-color: rgba(110, 168, 254, 0.55);
+            box-shadow: 0 0 0 3px rgba(110, 168, 254, 0.18);
         }
 
     .overlay {

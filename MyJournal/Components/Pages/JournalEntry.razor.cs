@@ -1,44 +1,66 @@
+using JournalMaui.Models;
+using JournalMaui.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
-using JournalMaui.Services;
-using JournalMaui.Models;
+using System.Globalization;
 
 namespace MyJournal.Components.Pages;
 
 public partial class JournalEntry : ComponentBase
 {
+    [Inject] private JournalDatabases Db { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
 
+    [SupplyParameterFromQuery(Name = "date")]
+    public string? Date { get; set; }
+
     private DateTime SelectedDate = DateTime.Today;
+
     private string Content = "";
+    private string CurrentTitle = "";
+
     private bool IsBusy = false;
     private string Status = "";
 
     private DateTime? CreatedAt;
     private DateTime? UpdatedAt;
 
-    // NEW: title state
-    private string CurrentTitle = "";
     private bool ShowTitleModal = false;
     private string TitleInput = "";
+
+    private JournalEntries? _current;
 
     private string CreatedAtText => CreatedAt?.ToString("yyyy-MM-dd HH:mm") ?? "-";
     private string UpdatedAtText => UpdatedAt?.ToString("yyyy-MM-dd HH:mm") ?? "-";
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnParametersSetAsync()
     {
-        await Load();
+        SelectedDate = ParseQueryDateOrToday(Date);
+        await LoadBySelectedDateAsync();
     }
 
-    private async Task Load()
+    private static DateTime ParseQueryDateOrToday(string? date)
+    {
+        if (!string.IsNullOrWhiteSpace(date) &&
+            DateTime.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out var parsed))
+        {
+            return parsed.Date;
+        }
+
+        return DateTime.Today;
+    }
+
+    private async Task LoadBySelectedDateAsync()
     {
         IsBusy = true;
         Status = "";
+
         try
         {
-            // loads latest entry for that date (date-only)
-            var entry = await Db.GetByDateAsync(SelectedDate);
-            if (entry is null)
+            _current = await Db.GetByDateAsync(SelectedDate);
+
+            if (_current is null)
             {
                 Content = "";
                 CurrentTitle = "";
@@ -48,10 +70,10 @@ public partial class JournalEntry : ComponentBase
             }
             else
             {
-                Content = entry.Content ?? "";
-                CurrentTitle = entry.Title ?? "";
-                CreatedAt = entry.CreatedAt;
-                UpdatedAt = entry.UpdatedAt;
+                Content = _current.Content ?? "";
+                CurrentTitle = _current.Title ?? "";
+                CreatedAt = _current.CreatedAt;
+                UpdatedAt = _current.UpdatedAt;
                 Status = "Loaded.";
             }
         }
@@ -61,7 +83,6 @@ public partial class JournalEntry : ComponentBase
         }
     }
 
-    // NEW: open title prompt
     private Task StartSave()
     {
         Status = "";
@@ -85,26 +106,29 @@ public partial class JournalEntry : ComponentBase
         }
 
         ShowTitleModal = false;
-        await SaveWithTitle(title);
+        await SaveWithTitleAsync(title);
     }
 
-    private async Task SaveWithTitle(string title)
+    private async Task SaveWithTitleAsync(string title)
     {
         IsBusy = true;
         Status = "";
+
         try
         {
             await Db.SaveAsync(SelectedDate, title, Content);
 
-            // reload by date only
-            var entry = await Db.GetByDateAsync(SelectedDate);
+            _current = await Db.GetByDateAsync(SelectedDate);
 
-            CurrentTitle = entry?.Title ?? title;
-            CreatedAt = entry?.CreatedAt;
-            UpdatedAt = entry?.UpdatedAt;
+            CurrentTitle = _current?.Title ?? title;
+            Content = _current?.Content ?? Content;
+            CreatedAt = _current?.CreatedAt;
+            UpdatedAt = _current?.UpdatedAt;
 
             Status = "Saved.";
-            Navigation.NavigateTo("/viewjournals");
+
+            //  go back to calendar so marker appears immediately
+            Navigation.NavigateTo("/viewjournals?refresh=1");
         }
         catch (Exception ex)
         {
@@ -116,29 +140,31 @@ public partial class JournalEntry : ComponentBase
         }
     }
 
-
-
     private async Task Delete()
     {
         IsBusy = true;
         Status = "";
+
         try
         {
             await Db.DeleteAsync(SelectedDate);
 
+            _current = null;
             Content = "";
             CurrentTitle = "";
             CreatedAt = null;
             UpdatedAt = null;
 
             Status = "Deleted.";
+
+            //  go back to calendar so marker disappears immediately
+            Navigation.NavigateTo("/calendar?refresh=1");
         }
         finally
         {
             IsBusy = false;
         }
     }
-
 
     private async Task HandleTitleKeyDown(KeyboardEventArgs e)
     {

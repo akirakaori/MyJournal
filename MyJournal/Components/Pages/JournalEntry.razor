@@ -1,7 +1,9 @@
 ﻿@page "/journalentry"
 @using JournalMaui.Services
 @using JournalMaui.Models
-@inject JournalDatabases Db
+
+@using System.Globalization
+@inject NavigationManager Nav
 
 <div class="page">
     <header class="header">
@@ -9,18 +11,6 @@
             <h1 class="title">Journal</h1>
             <p class="subtitle">Write one entry per day.</p>
         </div>
-
-        @* <div class="meta">
-            <div class="metaItem">
-                <span class="metaLabel">Created</span>
-                <span class="metaValue">@CreatedAtText</span>
-            </div>
-            <div class="metaDivider"></div>
-            <div class="metaItem">
-                <span class="metaLabel">Updated</span>
-                <span class="metaValue">@UpdatedAtText</span>
-            </div>
-        </div> *@
     </header>
 
     <section class="toolbarCard">
@@ -32,9 +22,6 @@
                     <span class="dateValue">@SelectedDate.ToString("dddd, dd MMM yyyy")</span>
                 </div>
 
-
-
-
                 <div class="metaItem">
                     <span class="metaLabel">Created</span>
                     <span class="metaValue">@CreatedAtText</span>
@@ -44,14 +31,9 @@
                     <span class="metaLabel">Updated</span>
                     <span class="metaValue">@UpdatedAtText</span>
                 </div>
-
-
-
             </div>
 
             <div class="btnGroup">
-
-
                 <button class="btn btnPrimary" @onclick="StartSave" disabled="@IsBusy" title="Save entry (will ask for title)">
                     <span class="btnIcon">💾</span>
                     <span>Save</span>
@@ -63,19 +45,6 @@
                 </button>
             </div>
         </div>
-
-        @* @if (IsBusy)
-        {
-            <div class="busyRow" aria-live="polite">
-                <div class="spinner" role="status" aria-label="Working"></div>
-                <span class="busyText">Working…</span>
-            </div>
-        }
-
-        @if (!string.IsNullOrWhiteSpace(Status))
-        {
-            <div class="status" aria-live="polite">@Status</div>
-        } *@
     </section>
 
     <main class="contentGrid">
@@ -122,7 +91,6 @@
                            @bind="TitleInput"
                            placeholder="e.g., My day, Study notes, Goals..."
                            @onkeydown="HandleTitleKeyDown" />
-                    @* <div class="modalHelp">This entry will be saved under <b>@SelectedDate.ToString("yyyy-MM-dd")</b> + this title.</div> *@
                 </div>
             </div>
 
@@ -303,47 +271,11 @@
             border-color: rgba(239,68,68,0.55);
         }
 
-    .busyRow {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-top: 10px;
-        padding-top: 10px;
-        border-top: 1px dashed rgba(255,255,255,0.12);
-    }
-
-    .busyText {
-        color: var(--muted);
-        font-size: 13px;
-        font-weight: 600;
-    }
-
-    .spinner {
-        width: 16px;
-        height: 16px;
-        border-radius: 50%;
-        border: 2px solid rgba(255,255,255,0.22);
-        border-top-color: rgba(255,255,255,0.75);
-        animation: spin 0.9s linear infinite;
-    }
-
-    .status {
-        margin-top: 10px;
-        padding: 10px 12px;
-        border-radius: 12px;
-        background: rgba(59,130,246,0.10);
-        border: 1px solid rgba(110,168,254,0.25);
-        color: rgba(255,255,255,0.88);
-        font-weight: 650;
-        font-size: 13px;
-    }
-
     .contentGrid {
         display: grid;
         grid-template-columns: 1fr;
         gap: 16px;
     }
-
 
     .editorCard {
         background: linear-gradient(180deg, var(--card2), var(--card));
@@ -481,12 +413,6 @@
         font-weight: 650;
     }
 
-    .modalHelp {
-        font-size: 12px;
-        color: rgba(255,255,255,0.60);
-        line-height: 1.35;
-    }
-
     .modalFooter {
         display: flex;
         justify-content: flex-end;
@@ -495,5 +421,4 @@
         border-top: 1px solid rgba(255,255,255,0.10);
         background: rgba(0,0,0,0.10);
     }
-
 </style>
