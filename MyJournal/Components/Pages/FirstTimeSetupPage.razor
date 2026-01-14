@@ -1,0 +1,81 @@
+@page "/first-time-setup"
+@using MudBlazor
+@inject MyJournal.Services.AuthService AuthService
+@inject NavigationManager NavManager
+
+<MudGrid Justify="Justify.Center" Style="min-height: 100vh;" AlignItems="AlignItems.Center">
+    <MudItem xs="12" sm="6" md="4">
+        <MudPaper Class="pa-6" Elevation="6">
+
+            <MudText Typo="Typo.h5" Align="Align.Center" Class="mb-4">
+                Welcome to MyJournal
+            </MudText>
+
+            <MudText Typo="Typo.body2" Align="Align.Center" Class="mb-6" Color="Color.Default">
+                Let's set up your account
+            </MudText>
+
+            <MudForm @ref="_form" Spacing="4">
+
+                <MudTextField T="string"
+                              Label="Username"
+                              @bind-Value="_username"
+                              Required="true"
+                              RequiredError="Username is required" />
+
+                <MudTextField T="string"
+                              Label="Email"
+                              @bind-Value="_email"
+                              InputType="InputType.Email"
+                              Required="true"
+                              RequiredError="Email is required"
+                              Validation="@(new Func<string, string?>(ValidateEmail))" />
+
+                <MudTextField T="string"
+                              Label="4-Digit PIN"
+                              @bind-Value="_pin"
+                              InputType="InputType.Password"
+                              Required="true"
+                              RequiredError="PIN is required"
+                              Validation="@(new Func<string, string?>(ValidatePin))"
+                              HelperText="Enter a 4-digit PIN for login"
+                              MaxLength="4" />
+
+                <MudTextField T="string"
+                              Label="Confirm PIN"
+                              @bind-Value="_confirmPin"
+                              InputType="InputType.Password"
+                              Required="true"
+                              RequiredError="Please confirm your PIN"
+                              Validation="@(new Func<string, string?>(ValidateConfirmPin))"
+                              MaxLength="4" />
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           FullWidth="true"
+                           Class="mt-4"
+                           Disabled="@_isBusy"
+                           OnClick="HandleSetup">
+                    @if (_isBusy)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                        <MudText Class="ml-2">Creating Account...</MudText>
+                    }
+                    else
+                    {
+                        <span>Create Account</span>
+                    }
+                </MudButton>
+
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mt-4">
+                        @_errorMessage
+                    </MudAlert>
+                }
+
+            </MudForm>
+
+        </MudPaper>
+    </MudItem>
+</MudGrid>

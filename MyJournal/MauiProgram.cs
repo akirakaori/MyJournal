@@ -18,13 +18,17 @@ namespace MyJournal
                 });
 
             builder.Services.AddMauiBlazorWebView();
+            builder.Services.AddMudServices();
+
+            // Register services
+            builder.Services.AddSingleton<ThemeState>();
+            builder.Services.AddSingleton<MyJournal.Services.AppState>();
+            builder.Services.AddSingleton<AuthService>();
+            builder.Services.AddSingleton<OTPService>();
+            builder.Services.AddSingleton<EmailService>();
 
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();
-            builder.Services.AddMudServices();
-
-            builder.Services.AddSingleton<ThemeState>();
-            builder.Services.AddSingleton<MyJournal.Services.AppState>();
 
             builder.Logging.AddDebug();
 #endif

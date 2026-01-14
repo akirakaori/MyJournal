@@ -21,11 +21,12 @@
                               RequiredError="Username is required" />
 
                 <MudTextField T="string"
-                              Label="Password"
-                              @bind-Value="_password"
+                              Label="4-Digit PIN"
+                              @bind-Value="_pin"
                               InputType="InputType.Password"
                               Required="true"
-                              RequiredError="Password is required" />
+                              RequiredError="PIN is required"
+                              MaxLength="4" />
 
                 <MudButton Variant="Variant.Filled"
                            Color="Color.Primary"
@@ -36,10 +37,18 @@
                     Login
                 </MudButton>
 
+                <MudButton Variant="Variant.Text"
+                           Color="Color.Primary"
+                           FullWidth="true"
+                           Size="Size.Small"
+                           OnClick="@(() => NavManager.NavigateTo("/forgot-password"))">
+                    Forgot Password?
+                </MudButton>
+
                 @if (_invalidCredentials)
                 {
                     <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mt-4">
-                        Invalid credentials
+                        Invalid username or PIN
                     </MudAlert>
                 }
 

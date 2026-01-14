@@ -8,6 +8,8 @@ namespace MyJournal.Services
         private const string DarkModeKey = "IsDarkMode";
 
         public bool IsLoggedIn { get; private set; } = false;
+        
+        public string Username { get; private set; } = string.Empty;
 
         // Global dark mode flag
         public bool IsDarkMode { get; private set; }
@@ -20,15 +22,17 @@ namespace MyJournal.Services
             IsDarkMode = Preferences.Default.Get(DarkModeKey, false);
         }
 
-        public void Login()
+        public void Login(string username = "")
         {
             IsLoggedIn = true;
+            Username = username;
             NotifyStateChanged();
         }
 
         public void Logout()
         {
             IsLoggedIn = false;
+            Username = string.Empty;
             NotifyStateChanged();
         }
 

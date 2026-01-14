@@ -6,13 +6,24 @@ namespace MyJournal.Components.Pages;
 
 public partial class Login
 {
+    [Inject] private AuthService AuthService { get; set; } = default!;
     private MudForm? _form;
 
     private string _username = string.Empty;
-    private string _password = string.Empty;
+    private string _pin = string.Empty;
 
     private bool _isBusy;
     private bool _invalidCredentials;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check if user exists, if not redirect to first-time setup
+        var userExists = await AuthService.UserExistsAsync();
+        if (!userExists)
+        {
+            NavManager.NavigateTo("/first-time-setup", replace: true);
+        }
+    }
 
     private async Task HandleLogin()
     {
@@ -27,9 +38,11 @@ public partial class Login
             return;
         }
 
-        if (_username == "1" && _password == "1")
+        var isValid = await AuthService.ValidateCredentialsAsync(_username, _pin);
+
+        if (isValid)
         {
-            AppState.Login();
+            AppState.Login(_username);
             NavManager.NavigateTo("/dashboard", replace: true);
         }
         else
