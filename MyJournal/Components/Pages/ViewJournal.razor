@@ -1,4 +1,5 @@
 ﻿@page "/viewjournals"
+
 @using JournalMaui.Models
 
 <div class="page">
@@ -48,6 +49,7 @@
                 </div>
             </div>
         }
+
         else
         {
             <div class="tableWrap">
@@ -78,8 +80,18 @@
                             <tr>
                                 <td class="td-date">@e.DateKey</td>
                                 <td class="td-title">@GetTitle(e.Title)</td>
-                                <td class="td-content">@Trunc(GetBody(e.Content), 180)</td>
+                                <td class="td-content">
+                                    @* Strip HTML for preview - CHANGED *@
+                                    @Trunc(StripHtml(e.Content), 180)
+                                </td>
                                 <td class="td-actions">
+                                    <button class="iconBtn view"
+                                            type="button"
+                                            title="View formatted content"
+                                            aria-label="View"
+                                            @onclick="() => ViewEntry(e)">
+                                        👁️
+                                    </button>
                                     <button class="iconBtn"
                                             type="button"
                                             title="Edit"
@@ -142,6 +154,11 @@
             </div>
         </div>
     }
+@* ADD THIS - Detail View Dialog *@
+    <JournalDetailDialog IsVisible="@ShowDetailView"
+                         Entry="@SelectedEntry"
+                         OnClose="@CloseDetailView"
+                         OnEditRequested="@EditFromDetailView" />
 </div>
 
 <style>
@@ -496,4 +513,14 @@
                 background: rgba(255, 80, 80, 0.25);
                 border-color: rgba(255, 80, 80, 0.55);
             }
+
+    .iconBtn.view {
+        background: linear-gradient(180deg, rgba(110, 168, 254, 0.15), rgba(59, 130, 246, 0.08));
+        border-color: rgba(110, 168, 254, 0.25);
+    }
+
+        .iconBtn.view:hover {
+            background: linear-gradient(180deg, rgba(110, 168, 254, 0.25), rgba(59, 130, 246, 0.15));
+            border-color: rgba(110, 168, 254, 0.4);
+        }
 </style>

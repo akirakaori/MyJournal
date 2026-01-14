@@ -2,11 +2,12 @@ using JournalMaui.Models;
 using JournalMaui.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.JSInterop;
 using System.Globalization;
 
 namespace MyJournal.Components.Pages;
 
-public partial class JournalEntry : ComponentBase
+public partial class JournalEntry : ComponentBase, IAsyncDisposable
 {
     [Inject] private JournalDatabases Db { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
@@ -29,9 +30,26 @@ public partial class JournalEntry : ComponentBase
     private string TitleInput = "";
 
     private JournalEntries? _current;
+    private DotNetObjectReference<JournalEntry>? _dotNetRef;
+    private int CharacterCount = 0;
 
     private string CreatedAtText => CreatedAt?.ToString("yyyy-MM-dd HH:mm") ?? "-";
     private string UpdatedAtText => UpdatedAt?.ToString("yyyy-MM-dd HH:mm") ?? "-";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _dotNetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("initQuill", "journal-description", _dotNetRef);
+
+            // Set initial content if exists
+            if (!string.IsNullOrEmpty(Content))
+            {
+                await JS.InvokeVoidAsync("setQuillHtml", Content);
+            }
+        }
+    }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -66,7 +84,14 @@ public partial class JournalEntry : ComponentBase
                 CurrentTitle = "";
                 CreatedAt = null;
                 UpdatedAt = null;
+                CharacterCount = 0;
                 Status = "No entry for this date. Start writing!";
+
+                // Clear Quill editor
+                if (_dotNetRef is not null)
+                {
+                    await JS.InvokeVoidAsync("setQuillHtml", "");
+                }
             }
             else
             {
@@ -75,6 +100,12 @@ public partial class JournalEntry : ComponentBase
                 CreatedAt = _current.CreatedAt;
                 UpdatedAt = _current.UpdatedAt;
                 Status = "Loaded.";
+
+                // Update Quill editor with loaded content
+                if (_dotNetRef is not null)
+                {
+                    await JS.InvokeVoidAsync("setQuillHtml", Content);
+                }
             }
         }
         finally
@@ -83,12 +114,25 @@ public partial class JournalEntry : ComponentBase
         }
     }
 
-    private Task StartSave()
+    /// <summary>
+    /// Called from JavaScript when Quill content changes
+    /// </summary>
+    [JSInvokable]
+    public void OnQuillContentChanged(string html, int length)
     {
+        Content = html;
+        CharacterCount = length;
+        StateHasChanged();
+    }
+
+    private async Task StartSave()
+    {
+        // Get latest content from Quill
+        Content = await JS.InvokeAsync<string>("getQuillHtml");
+
         Status = "";
         TitleInput = string.IsNullOrWhiteSpace(CurrentTitle) ? "" : CurrentTitle;
         ShowTitleModal = true;
-        return Task.CompletedTask;
     }
 
     private void CloseTitleModal()
@@ -116,6 +160,9 @@ public partial class JournalEntry : ComponentBase
 
         try
         {
+            // Ensure we have the latest content from Quill
+            Content = await JS.InvokeAsync<string>("getQuillHtml");
+
             await Db.SaveAsync(SelectedDate, title, Content);
 
             _current = await Db.GetByDateAsync(SelectedDate);
@@ -127,7 +174,7 @@ public partial class JournalEntry : ComponentBase
 
             Status = "Saved.";
 
-            //  go back to calendar so marker appears immediately
+            // Go back to calendar so marker appears immediately
             Navigation.NavigateTo("/viewjournals?refresh=1");
         }
         catch (Exception ex)
@@ -154,10 +201,17 @@ public partial class JournalEntry : ComponentBase
             CurrentTitle = "";
             CreatedAt = null;
             UpdatedAt = null;
+            CharacterCount = 0;
 
             Status = "Deleted.";
 
-            //  go back to calendar so marker disappears immediately
+            // Clear Quill editor
+            if (_dotNetRef is not null)
+            {
+                await JS.InvokeVoidAsync("setQuillHtml", "");
+            }
+
+            // Go back to calendar so marker disappears immediately
             Navigation.NavigateTo("/calendar?refresh=1");
         }
         finally
@@ -176,5 +230,11 @@ public partial class JournalEntry : ComponentBase
         {
             CloseTitleModal();
         }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _dotNetRef?.Dispose();
+        await Task.CompletedTask;
     }
 }

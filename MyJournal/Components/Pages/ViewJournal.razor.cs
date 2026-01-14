@@ -1,7 +1,8 @@
-using Microsoft.AspNetCore.Components;
+﻿using Microsoft.AspNetCore.Components;
 using JournalMaui.Services;
 using JournalMaui.Models;
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace MyJournal.Components.Pages;
 
@@ -20,14 +21,17 @@ public partial class ViewJournal : ComponentBase
     private string PendingDeleteDateKey = "";
     private bool IsDeleting = false;
 
-    private string SortColumn = nameof(JournalEntries.DateKey);
-    private bool SortAscending = false; // default: newest first
+    // detail view - NEW
+    private bool ShowDetailView = false;
+    private JournalEntries? SelectedEntry = null;
 
+    private string SortColumn = nameof(JournalEntries.DateKey);
+    private bool SortAscending = false;
 
     // paging
     private int PageSize = 5;
-    private int CurrentPage = 1; // 1-based
-    private bool SortDescending = true; // newest first
+    private int CurrentPage = 1;
+    private bool SortDescending = true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -39,7 +43,7 @@ public partial class ViewJournal : ComponentBase
         IsLoading = true;
         try
         {
-            Entries = await Db.GetRecentAsync(2000); // load more, paging happens client-side
+            Entries = await Db.GetRecentAsync(2000);
             CurrentPage = 1;
         }
         finally
@@ -48,19 +52,39 @@ public partial class ViewJournal : ComponentBase
         }
     }
 
+    // ---------- Detail View - NEW ----------
+    private void ViewEntry(JournalEntries entry)
+    {
+        SelectedEntry = entry;
+        ShowDetailView = true;
+    }
+
+    private void CloseDetailView()
+    {
+        ShowDetailView = false;
+        SelectedEntry = null;
+    }
+
+    private void EditFromDetailView()
+    {
+        if (SelectedEntry != null)
+        {
+            ShowDetailView = false;
+            Edit(SelectedEntry.DateKey);
+        }
+    }
+
     // ---------- Filtering + Sorting ----------
     private IEnumerable<JournalEntries> FilteredSorted()
     {
         IEnumerable<JournalEntries> q = Entries;
 
-        // Search
         if (!string.IsNullOrWhiteSpace(SearchTitle))
         {
             q = q.Where(e =>
                 (e.Title ?? "").Contains(SearchTitle, StringComparison.OrdinalIgnoreCase));
         }
 
-        // Sort
         q = SortColumn switch
         {
             nameof(JournalEntries.Title) =>
@@ -68,7 +92,7 @@ public partial class ViewJournal : ComponentBase
                     ? q.OrderBy(e => e.Title)
                     : q.OrderByDescending(e => e.Title),
 
-            _ => // DateKey
+            _ =>
                 SortAscending
                     ? q.OrderBy(e => ParseDateKey(e.DateKey))
                     : q.OrderByDescending(e => ParseDateKey(e.DateKey))
@@ -81,7 +105,6 @@ public partial class ViewJournal : ComponentBase
     {
         if (SortColumn == column)
         {
-            // toggle direction
             SortAscending = !SortAscending;
         }
         else
@@ -99,11 +122,9 @@ public partial class ViewJournal : ComponentBase
             return new MarkupString("");
 
         return SortAscending
-            ? new MarkupString(" ?")
-            : new MarkupString(" ?");
+            ? new MarkupString(" ▲")
+            : new MarkupString(" ▼");
     }
-
-
 
     private static DateTime ParseDateKey(string? dateKey)
     {
@@ -140,7 +161,6 @@ public partial class ViewJournal : ComponentBase
     private bool IsFirstPage => CurrentPage <= 1;
     private bool IsLastPage => CurrentPage >= TotalPages;
 
-    // show page numbers around current page
     private IEnumerable<int> PageNumbersToShow
     {
         get
@@ -151,7 +171,6 @@ public partial class ViewJournal : ComponentBase
             var start = Math.Max(1, CurrentPage - 2);
             var end = Math.Min(total, CurrentPage + 2);
 
-            // expand to 5 pages if possible
             while (end - start < 4)
             {
                 if (start > 1) start--;
@@ -210,10 +229,11 @@ public partial class ViewJournal : ComponentBase
     }
 
     // ---------- Delete flow ----------
-    private void PromptDelete(string dateKey)
+    private async Task PromptDelete(string dateKey)
     {
         PendingDeleteDateKey = dateKey;
         ShowDeleteConfirm = true;
+        await Task.CompletedTask;
     }
 
     private void CancelDelete()
@@ -252,6 +272,21 @@ public partial class ViewJournal : ComponentBase
         s ??= "";
         s = s.Replace("\r", " ").Replace("\n", " ");
         return s.Length <= n ? s : s.Substring(0, n) + "...";
+    }
+
+    /// <summary>
+    /// Strip HTML tags from content for plain text preview - NEW
+    /// </summary>
+    private static string StripHtml(string? html)
+    {
+        if (string.IsNullOrWhiteSpace(html))
+            return "";
+
+        // Remove HTML tags
+        var text = Regex.Replace(html, @"<[^>]+>", " ");
+        // Remove extra whitespace
+        text = Regex.Replace(text, @"\s+", " ");
+        return text.Trim();
     }
 
     private static string GetBody(string? content)
