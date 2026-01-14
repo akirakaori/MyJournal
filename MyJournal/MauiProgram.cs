@@ -2,7 +2,6 @@
 using JournalMaui.Services;
 using Microsoft.Extensions.Logging;
 using MudBlazor.Services;
-using MyJournal;
 
 namespace MyJournal
 {
@@ -22,26 +21,32 @@ namespace MyJournal
 
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();
-            //builder.Services.AddSingleton<AppState>();
             builder.Services.AddMudServices();
+
             builder.Services.AddSingleton<ThemeState>();
-
             builder.Services.AddSingleton<MyJournal.Services.AppState>();
-            builder.Services.AddSingleton<JournalDatabases>();
-
-
-
-
-
 
             builder.Logging.AddDebug();
 #endif
+
             builder.Services.AddSingleton(sp =>
             {
                 var dbPath = Path.Combine(FileSystem.AppDataDirectory, "journal.db3");
-                var db = new JournalDatabases(dbPath);
-                _ = db.InitAsync(); // fire once (safe), no UI thread blocking
-                return db;
+
+                var journalDb = new JournalDatabases(dbPath);
+                _ = journalDb.InitAsync();
+
+                return journalDb;
+            });
+
+            builder.Services.AddSingleton(sp =>
+            {
+                var dbPath = Path.Combine(FileSystem.AppDataDirectory, "journal.db3");
+
+                var calDb = new CalendarDb(dbPath);
+                _ = calDb.InitAsync();
+
+                return calDb;
             });
 
             return builder.Build();
