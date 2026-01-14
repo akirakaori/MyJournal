@@ -1,6 +1,7 @@
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
+using Microsoft.Extensions.Configuration;
 
 namespace MyJournal.Services
 {
@@ -9,12 +10,16 @@ namespace MyJournal.Services
     /// </summary>
     public class EmailService
     {
-        private const string SMTP_HOST = "smtp-relay.brevo.com";
+        private const string SMTP_HOST = "smtp.gmail.com";
+        //smtp-relay.brevo.com
         private const int SMTP_PORT = 587;
         
-        // Environment variable keys
-        private const string SMTP_USERNAME_ENV = "BREVO_SMTP_USERNAME";
-        private const string SMTP_PASSWORD_ENV = "BREVO_SMTP_PASSWORD";
+        private readonly IConfiguration _configuration;
+
+        public EmailService(IConfiguration configuration)
+        {
+            _configuration = configuration;
+        }
 
         /// <summary>
         /// Sends OTP email to the specified address
@@ -23,16 +28,18 @@ namespace MyJournal.Services
         {
             try
             {
-                // Try to get SMTP credentials from various environment variables for convenience
-                var smtpUsername = Environment.GetEnvironmentVariable("BREVO_SMTP_USERNAME") 
+                // Try to get SMTP credentials from configuration (user secrets) or environment variables
+                var smtpUsername = _configuration["BREVO_SMTP_USERNAME"] 
+                                  ?? Environment.GetEnvironmentVariable("BREVO_SMTP_USERNAME")
                                   ?? Environment.GetEnvironmentVariable("GMAIL_SMTP_USERNAME");
                 
-                var smtpPassword = Environment.GetEnvironmentVariable("BREVO_SMTP_PASSWORD") 
+                var smtpPassword = _configuration["BREVO_SMTP_PASSWORD"] 
+                                  ?? Environment.GetEnvironmentVariable("BREVO_SMTP_PASSWORD")
                                   ?? Environment.GetEnvironmentVariable("GMAIL_APP_PASSWORD");
 
                 if (string.IsNullOrEmpty(smtpUsername) || string.IsNullOrEmpty(smtpPassword))
                 {
-                    return (false, "SMTP credentials not configured. Please set environment variables (BREVO_SMTP_USERNAME/PASSWORD or GMAIL_SMTP_USERNAME/PASSWORD).");
+                    return (false, "SMTP credentials not configured. Please set user secrets or environment variables (BREVO_SMTP_USERNAME/PASSWORD or GMAIL_SMTP_USERNAME/PASSWORD).");
                 }
 
                 // Create email message

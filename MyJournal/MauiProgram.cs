@@ -2,6 +2,8 @@
 using JournalMaui.Services;
 using Microsoft.Extensions.Logging;
 using MudBlazor.Services;
+using Microsoft.Extensions.Configuration;
+using System.Reflection;
 
 namespace MyJournal
 {
@@ -16,6 +18,11 @@ namespace MyJournal
                 {
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                 });
+
+            // Load user secrets in debug mode
+#if DEBUG
+            builder.Configuration.AddUserSecrets(Assembly.GetExecutingAssembly());
+#endif
 
             builder.Services.AddMauiBlazorWebView();
             builder.Services.AddMudServices();
