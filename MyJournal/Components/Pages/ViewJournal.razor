@@ -1,15 +1,14 @@
 ﻿@page "/viewjournals"
-
 @using JournalMaui.Models
+@using System.Globalization
 
 <div class="page">
-
 
     <section class="card">
         <div class="cardHeader">
             <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                 <h2 class="cardTitle">Saved Journals</h2>
-                <span class="pill">@FilteredCount</span>
+                <span class="pill">@TotalCount</span>
             </div>
 
             <div class="controls">
@@ -19,16 +18,37 @@
                        value="@SearchTitle"
                        @oninput="OnSearchInput" />
 
+                <div class="dateRange">
+                    <div class="dateField">
+                        <label class="dateLabel">From</label>
+                        <input class="dateInput"
+                               type="date"
+                               value="@FromDateText"
+                               @onchange="OnFromDateChanged" />
+                    </div>
+
+                    <div class="dateField">
+                        <label class="dateLabel">To</label>
+                        <input class="dateInput"
+                               type="date"
+                               value="@ToDateText"
+                               @onchange="OnToDateChanged" />
+                    </div>
+
+                    <button class="btn ghost small"
+                            type="button"
+                            @onclick="ClearDates"
+                            title="Clear date range">
+                        Clear
+                    </button>
+                </div>
+
                 <select class="select" value="@PageSize" @onchange="OnPageSizeChanged" title="Rows per page">
                     <option value="5">5 / page</option>
                     <option value="10">10 / page</option>
                     <option value="15">15 / page</option>
                     <option value="20">20 / page</option>
                 </select>
-
-                <button class="sortBtn" type="button" @onclick="ToggleSort" title="Toggle sort by date">
-                    @(SortDescending ? "Newest ↓" : "Oldest ↑")
-                </button>
             </div>
         </div>
 
@@ -39,64 +59,77 @@
                 <span>Loading journals…</span>
             </div>
         }
-        else if (PagedEntries.Count == 0)
+        else if (Entries.Count == 0)
         {
             <div class="empty">
                 <div class="emptyIcon">📓</div>
                 <div>
                     <div class="emptyTitle">No matching journals</div>
-                    <div class="emptySub">Try a different title keyword.</div>
+                    <div class="emptySub">Try a different title keyword or date range.</div>
                 </div>
             </div>
         }
-
         else
         {
             <div class="tableWrap">
                 <table class="journalsTable">
-
                     <thead>
                         <tr>
                             <th @onclick="() => SortBy(nameof(JournalEntries.DateKey))"
                                 class="sortable @(SortColumn == nameof(JournalEntries.DateKey) ? "active" : "")">
-                                Date
-                                @SortIcon(nameof(JournalEntries.DateKey))
+                                Date @SortIcon(nameof(JournalEntries.DateKey))
                             </th>
 
                             <th @onclick="() => SortBy(nameof(JournalEntries.Title))"
                                 class="sortable @(SortColumn == nameof(JournalEntries.Title) ? "active" : "")">
-                                Title
-                                @SortIcon(nameof(JournalEntries.Title))
+                                Title @SortIcon(nameof(JournalEntries.Title))
                             </th>
 
+                            <th>PIN Protected</th>
                             <th>Content Preview</th>
                             <th style="text-align:right;">Actions</th>
                         </tr>
                     </thead>
 
                     <tbody>
-                        @foreach (var e in PagedEntries)
+                        @foreach (var e in Entries)
                         {
                             <tr>
                                 <td class="td-date">@e.DateKey</td>
-                                <td class="td-title">@GetTitle(e.Title)</td>
-                                <td class="td-content">
-                                    @* Strip HTML for preview - CHANGED *@
-                                    @Trunc(StripHtml(e.Content), 180)
+
+                                <td class="td-title">
+                                    @GetTitle(e.Title)
                                 </td>
+
+                                <td class="td-pin">
+                                    @(e.HasPin ? "True" : "False")
+                                </td>
+
+                                <td class="td-content">
+                                    @if (e.HasPin)
+                                    {
+                                        <span class="lockedPreview">Locked 🔒</span>
+                                    }
+                                    else
+                                    {
+                                        @Trunc(StripHtml(e.Content), 180)
+                                    }
+                                </td>
+
                                 <td class="td-actions">
                                     <button class="iconBtn view"
                                             type="button"
-                                            title="View formatted content"
+                                            title="View"
                                             aria-label="View"
-                                            @onclick="() => ViewEntry(e)">
+                                            @onclick="() => RequestView(e)">
                                         👁️
                                     </button>
+
                                     <button class="iconBtn"
                                             type="button"
                                             title="Edit"
                                             aria-label="Edit"
-                                            @onclick="() => Edit(e.DateKey)">
+                                            @onclick="() => RequestEdit(e.DateKey)">
                                         ✏️
                                     </button>
 
@@ -104,7 +137,7 @@
                                             type="button"
                                             title="Delete"
                                             aria-label="Delete"
-                                            @onclick="() => PromptDelete(e.DateKey)">
+                                            @onclick="() => RequestDelete(e.DateKey)">
                                         🗑️
                                     </button>
                                 </td>
@@ -116,7 +149,7 @@
 
             <div class="pager">
                 <div class="pagerInfo">
-                    Showing <b>@StartRow</b>–<b>@EndRow</b> of <b>@FilteredCount</b>
+                    Showing <b>@StartRow</b>–<b>@EndRow</b> of <b>@TotalCount</b>
                 </div>
 
                 <div class="pagerBtns">
@@ -136,6 +169,7 @@
         }
     </section>
 
+    @* Delete confirm (non-PIN entries) *@
     @if (ShowDeleteConfirm)
     {
         <div class="overlay" @onclick="CancelDelete">
@@ -154,43 +188,121 @@
             </div>
         </div>
     }
-@* ADD THIS - Detail View Dialog *@
+
+    @* PIN Prompt Modal *@
+    @if (ShowPinModal)
+    {
+        <div class="overlay" @onclick="CancelPin">
+            <div class="dialog" @onclick:stopPropagation="true">
+                <div class="dialogTitle">Enter PIN</div>
+                <div class="dialogText">
+                    This journal is PIN protected. Enter the 4-character PIN to continue.
+                    <div style="margin-top:6px; color: rgba(255,255,255,0.55); font-size:12px;">
+                        Date: <b>@PendingPinDateKey</b>
+                    </div>
+                </div>
+
+                <input class="pinInput"
+                       type="password"
+                       maxlength="4"
+                       value="@PinInput"
+                       @oninput="OnPinInputChanged"
+                       placeholder="****"
+                       autocomplete="off" />
+
+                @if (!string.IsNullOrWhiteSpace(PinError))
+                {
+                    <div class="pinError">@PinError</div>
+                }
+
+                <div class="pinDangerRow">
+                    <button class="linkDanger"
+                            type="button"
+                            @onclick="OpenForceDeleteConfirm">
+                        Can’t remember PIN? Force delete this journal
+                    </button>
+                </div>
+
+                <div class="dialogActions" style="margin-top:14px;">
+                    <button class="btn ghost" type="button" @onclick="CancelPin">Cancel</button>
+                    <button class="btn" type="button" @onclick="ConfirmPin">Continue</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @* Force Delete Confirm Modal *@
+    @if (ShowForceDeleteConfirm)
+    {
+        <div class="overlay" @onclick="CloseForceDeleteConfirm">
+            <div class="dialog" @onclick:stopPropagation="true">
+                <div class="dialogTitle">Force delete journal?</div>
+                <div class="dialogText">
+                    You are about to delete the journal for <b>@PendingPinDateKey</b> <b>without the PIN</b>.
+                    This cannot be undone.
+                </div>
+
+                <div class="dialogActions">
+                    <button class="btn ghost" type="button" @onclick="CloseForceDeleteConfirm">Cancel</button>
+                    <button class="btn danger" type="button" @onclick="ForceDeleteWithoutPin" disabled="@IsForceDeleting">
+                        @(IsForceDeleting ? "Deleting..." : "Force Delete")
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @* Detail View Dialog *@
     <JournalDetailDialog IsVisible="@ShowDetailView"
                          Entry="@SelectedEntry"
                          OnClose="@CloseDetailView"
                          OnEditRequested="@EditFromDetailView" />
 </div>
 
+
 <style>
-    :root {
-        --bg: #0b1020;
-        --card: rgba(255,255,255,0.06);
-        --card2: rgba(255,255,255,0.08);
-        --border: rgba(255,255,255,0.12);
-        --text: rgba(255,255,255,0.92);
-        --muted: rgba(255,255,255,0.6);
-        --primary: #6ea8fe;
-        --shadow: 0 12px 40px rgba(0,0,0,0.35);
+    /* =========================================================
+       VIEW JOURNALS – THEME AWARE (LIGHT + DARK)
+       No hard-coded dark :root colors
+       ========================================================= */
+
+    .page {
+        --bg: var(--mud-palette-background);
+        --surface: var(--mud-palette-surface);
+        --surface-rgb: var(--mud-palette-surface-rgb);
+        --divider: var(--mud-palette-divider);
+        --text: var(--mud-palette-text-primary);
+        --text-rgb: var(--mud-palette-text-primary-rgb);
+        --muted: var(--mud-palette-text-secondary);
+        --muted-rgb: var(--mud-palette-text-secondary-rgb);
+        --primary: var(--mud-palette-primary);
+        --primary-rgb: var(--mud-palette-primary-rgb);
+        --danger: var(--mud-palette-error);
+        --danger-rgb: var(--mud-palette-error-rgb);
+        --shadow: 0 12px 40px rgba(0,0,0,0.18);
         --radius: 16px;
+        background: var(--bg);
+        color: var(--text);
     }
 
+    /* Sorting */
     .sortable {
         cursor: pointer;
         user-select: none;
     }
 
         .sortable:hover {
-            background: rgba(255,255,255,0.06);
+            background: rgba(var(--text-rgb), 0.04);
         }
 
         .sortable.active {
-            color: #6ea8fe;
+            color: var(--primary);
         }
 
-
+    /* Card */
     .card {
-        background: linear-gradient(180deg, var(--card2), var(--card));
-        border: 1px solid var(--border);
+        background: rgba(var(--surface-rgb), 0.96);
+        border: 1px solid var(--divider);
         border-radius: var(--radius);
         box-shadow: var(--shadow);
         overflow: hidden;
@@ -203,7 +315,7 @@
         align-items: center;
         gap: 12px;
         flex-wrap: wrap;
-        border-bottom: 1px solid rgba(255,255,255,0.1);
+        border-bottom: 1px solid var(--divider);
     }
 
     .cardTitle {
@@ -211,60 +323,98 @@
         font-size: 14px;
         letter-spacing: 0.08em;
         text-transform: uppercase;
+        color: var(--text);
+        opacity: 0.9;
     }
 
+    /* Count pill */
     .pill {
         padding: 6px 10px;
         border-radius: 999px;
         font-size: 12px;
-        background: rgba(0,0,0,0.2);
-        border: 1px solid var(--border);
+        background: rgba(var(--surface-rgb), 0.75);
+        border: 1px solid var(--divider);
+        color: var(--text);
     }
 
+    /* Controls */
     .controls {
         display: flex;
         gap: 10px;
-        align-items: center;
+        align-items: end;
         flex-wrap: wrap;
         justify-content: flex-end;
     }
 
-    .search {
-        width: min(320px, 100%);
+    /* Inputs shared */
+    .search,
+    .dateInput,
+    .select,
+    .pinInput {
         padding: 10px 12px;
         border-radius: 12px;
-        border: 1px solid rgba(255,255,255,0.14);
-        background: rgba(0,0,0,0.18);
-        color: rgba(255,255,255,0.92);
+        border: 1px solid var(--divider);
+        background: rgba(var(--surface-rgb), 0.75);
+        color: var(--text);
         outline: none;
         font-size: 13px;
     }
 
+        /* Placeholder */
         .search::placeholder {
-            color: rgba(255,255,255,0.45);
+            color: rgba(var(--muted-rgb), 0.85);
         }
 
-        .search:focus {
-            border-color: rgba(110, 168, 254, 0.55);
-            box-shadow: 0 0 0 3px rgba(110, 168, 254, 0.18);
+        /* Focus ring */
+        .search:focus,
+        .dateInput:focus,
+        .select:focus,
+        .pinInput:focus {
+            border-color: rgba(var(--primary-rgb), 0.55);
+            box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.18);
         }
 
-    .select, .sortBtn {
-        padding: 10px 12px;
+    /* Search width */
+    .search {
+        width: min(320px, 100%);
+    }
+
+    /* Date range block */
+    .dateRange {
+        display: flex;
+        gap: 10px;
+        align-items: end;
+        flex-wrap: wrap;
+        padding: 8px 10px;
+        border: 1px solid var(--divider);
         border-radius: 12px;
-        border: 1px solid rgba(255,255,255,0.14);
-        background: rgba(0,0,0,0.18);
-        color: rgba(255,255,255,0.92);
-        outline: none;
-        font-size: 13px;
+        background: rgba(var(--surface-rgb), 0.55);
+    }
+
+    .dateField {
+        display: grid;
+        gap: 6px;
+    }
+
+    .dateLabel {
+        font-size: 11px;
+        color: rgba(var(--muted-rgb), 0.85);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+    }
+
+    /* Select */
+    .select {
         cursor: pointer;
     }
 
+    /* =========================================================
+       Table
+       ========================================================= */
     .tableWrap {
         overflow-x: auto;
     }
 
-    /* ✅ avoid Bootstrap .table clash */
     .journalsTable {
         width: 100%;
         border-collapse: collapse;
@@ -275,31 +425,30 @@
         .journalsTable thead th {
             text-align: left;
             padding: 12px 14px;
-            color: rgba(255,255,255,0.75);
-            border-bottom: 1px solid rgba(255,255,255,0.12);
-            background: rgba(0,0,0,0.12);
+            color: rgba(var(--muted-rgb), 0.95);
+            border-bottom: 1px solid var(--divider);
+            background: rgba(var(--surface-rgb), 0.65);
             white-space: nowrap;
         }
 
         .journalsTable tbody tr {
-            background: rgba(0,0,0,0.10);
+            background: rgba(var(--surface-rgb), 0.55);
         }
 
             .journalsTable tbody tr:hover {
-                background: rgba(255,255,255,0.06);
+                background: rgba(var(--primary-rgb), 0.06);
             }
 
         .journalsTable tbody td {
             padding: 12px 14px;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
-            color: rgba(255,255,255,0.88);
+            border-bottom: 1px solid rgba(var(--text-rgb), 0.06);
+            color: var(--text);
             vertical-align: top;
         }
 
-
     .td-date {
         font-weight: 800;
-        color: rgba(255,255,255,0.72);
+        color: rgba(var(--muted-rgb), 0.95);
         white-space: nowrap;
     }
 
@@ -307,10 +456,28 @@
         font-weight: 900;
     }
 
+    .td-pin {
+        color: rgba(var(--muted-rgb), 0.95);
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
     .td-content {
         color: var(--muted);
     }
 
+    .lockedPreview {
+        display: inline-block;
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--divider);
+        background: rgba(var(--surface-rgb), 0.75);
+        color: rgba(var(--muted-rgb), 0.95);
+        font-weight: 800;
+        font-size: 12px;
+    }
+
+    /* Actions */
     .td-actions {
         text-align: right;
         white-space: nowrap;
@@ -320,30 +487,50 @@
         width: 34px;
         height: 34px;
         border-radius: 10px;
-        border: 1px solid rgba(255,255,255,0.12);
-        background: rgba(0,0,0,0.16);
-        color: rgba(255,255,255,0.9);
+        border: 1px solid var(--divider);
+        background: rgba(var(--surface-rgb), 0.75);
+        color: var(--text);
         cursor: pointer;
         display: inline-grid;
         place-items: center;
         line-height: 1;
         user-select: none;
         margin-left: 8px;
+        transition: background .15s ease, border-color .15s ease, transform .05s ease;
     }
 
         .iconBtn:hover {
-            border-color: rgba(255,255,255,0.22);
-            background: rgba(0,0,0,0.22);
+            background: rgba(var(--surface-rgb), 0.92);
+            border-color: rgba(var(--text-rgb), 0.14);
         }
 
         .iconBtn:active {
             transform: translateY(1px);
         }
 
-        .iconBtn.danger {
-            border-color: rgba(255,255,255,0.14);
+        .iconBtn.view {
+            background: rgba(var(--primary-rgb), 0.12);
+            border-color: rgba(var(--primary-rgb), 0.22);
         }
 
+            .iconBtn.view:hover {
+                background: rgba(var(--primary-rgb), 0.18);
+                border-color: rgba(var(--primary-rgb), 0.35);
+            }
+
+        .iconBtn.danger {
+            background: rgba(var(--danger-rgb), 0.10);
+            border-color: rgba(var(--danger-rgb), 0.20);
+        }
+
+            .iconBtn.danger:hover {
+                background: rgba(var(--danger-rgb), 0.16);
+                border-color: rgba(var(--danger-rgb), 0.35);
+            }
+
+    /* =========================================================
+       Loading / Empty
+       ========================================================= */
     .loading {
         padding: 20px;
         display: flex;
@@ -356,11 +543,12 @@
         width: 18px;
         height: 18px;
         border-radius: 50%;
-        border: 2px solid rgba(255,255,255,0.25);
-        border-top-color: rgba(255,255,255,0.75);
+        border: 2px solid rgba(var(--text-rgb), 0.18);
+        border-top-color: rgba(var(--text-rgb), 0.55);
         animation: spin 0.9s linear infinite;
     }
 
+    
     .empty {
         padding: 20px;
         display: grid;
@@ -376,14 +564,14 @@
         border-radius: 14px;
         display: grid;
         place-items: center;
-        background: rgba(0,0,0,0.2);
-        border: 1px solid var(--border);
+        background: rgba(var(--surface-rgb), 0.75);
+        border: 1px solid var(--divider);
         font-size: 20px;
     }
 
     .emptyTitle {
         font-weight: 800;
-        color: rgba(255,255,255,0.85);
+        color: var(--text);
     }
 
     .emptySub {
@@ -391,6 +579,9 @@
         color: var(--muted);
     }
 
+    /* =========================================================
+       Pager
+       ========================================================= */
     .pager {
         padding: 12px 14px;
         display: flex;
@@ -398,12 +589,12 @@
         justify-content: space-between;
         gap: 12px;
         flex-wrap: wrap;
-        border-top: 1px solid rgba(255,255,255,0.10);
-        background: rgba(0,0,0,0.10);
+        border-top: 1px solid var(--divider);
+        background: rgba(var(--surface-rgb), 0.65);
     }
 
     .pagerInfo {
-        color: rgba(255,255,255,0.72);
+        color: rgba(var(--muted-rgb), 0.95);
         font-size: 13px;
     }
 
@@ -417,17 +608,17 @@
     .pagerBtn {
         padding: 8px 10px;
         border-radius: 10px;
-        border: 1px solid rgba(255,255,255,0.14);
-        background: rgba(0,0,0,0.18);
-        color: rgba(255,255,255,0.92);
+        border: 1px solid var(--divider);
+        background: rgba(var(--surface-rgb), 0.75);
+        color: var(--text);
         cursor: pointer;
         font-weight: 800;
         font-size: 13px;
     }
 
         .pagerBtn:hover {
-            background: rgba(255,255,255,0.08);
-            border-color: rgba(255,255,255,0.22);
+            background: rgba(var(--surface-rgb), 0.92);
+            border-color: rgba(var(--text-rgb), 0.14);
         }
 
         .pagerBtn:disabled {
@@ -436,10 +627,13 @@
         }
 
         .pagerBtn.active {
-            border-color: rgba(110, 168, 254, 0.55);
-            box-shadow: 0 0 0 3px rgba(110, 168, 254, 0.18);
+            border-color: rgba(var(--primary-rgb), 0.45);
+            box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.16);
         }
 
+    /* =========================================================
+       Dialogs / Overlays (Theme aware)
+       ========================================================= */
     .overlay {
         position: fixed;
         inset: 0;
@@ -453,11 +647,11 @@
     .dialog {
         width: min(520px, 100%);
         border-radius: 16px;
-        border: 1px solid rgba(255,255,255,0.14);
-        background: rgba(20, 24, 40, 0.98);
-        box-shadow: 0 18px 60px rgba(0,0,0,0.55);
+        border: 1px solid var(--divider);
+        background: rgba(var(--surface-rgb), 0.98);
+        box-shadow: 0 18px 60px rgba(0,0,0,0.35);
         padding: 16px;
-        color: rgba(255,255,255,0.92);
+        color: var(--text);
     }
 
     .dialogTitle {
@@ -467,10 +661,10 @@
     }
 
     .dialogText {
-        color: rgba(255,255,255,0.70);
+        color: var(--muted);
         font-size: 13px;
         line-height: 1.45;
-        margin-bottom: 14px;
+        margin-bottom: 12px;
     }
 
     .dialogActions {
@@ -479,20 +673,21 @@
         gap: 10px;
     }
 
+    /* Buttons (dialog + elsewhere in this page) */
     .btn {
         padding: 10px 12px;
         border-radius: 12px;
-        border: 1px solid rgba(255,255,255,0.14);
-        background: rgba(255,255,255,0.06);
-        color: rgba(255,255,255,0.92);
+        border: 1px solid var(--divider);
+        background: rgba(var(--surface-rgb), 0.75);
+        color: var(--text);
         cursor: pointer;
         font-weight: 700;
         font-size: 13px;
     }
 
         .btn:hover {
-            background: rgba(255,255,255,0.10);
-            border-color: rgba(255,255,255,0.22);
+            background: rgba(var(--surface-rgb), 0.92);
+            border-color: rgba(var(--text-rgb), 0.14);
         }
 
         .btn:disabled {
@@ -505,22 +700,56 @@
         }
 
         .btn.danger {
-            background: rgba(255, 80, 80, 0.18);
-            border-color: rgba(255, 80, 80, 0.40);
+            background: rgba(var(--danger-rgb), 0.14);
+            border-color: rgba(var(--danger-rgb), 0.30);
         }
 
             .btn.danger:hover {
-                background: rgba(255, 80, 80, 0.25);
-                border-color: rgba(255, 80, 80, 0.55);
+                background: rgba(var(--danger-rgb), 0.20);
+                border-color: rgba(var(--danger-rgb), 0.42);
             }
 
-    .iconBtn.view {
-        background: linear-gradient(180deg, rgba(110, 168, 254, 0.15), rgba(59, 130, 246, 0.08));
-        border-color: rgba(110, 168, 254, 0.25);
+        .btn.small {
+            padding: 8px 10px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+    /* PIN Input */
+    .pinInput {
+        width: 100%;
+        font-weight: 800;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
     }
 
-        .iconBtn.view:hover {
-            background: linear-gradient(180deg, rgba(110, 168, 254, 0.25), rgba(59, 130, 246, 0.15));
-            border-color: rgba(110, 168, 254, 0.4);
+    .pinError {
+        margin-top: 8px;
+        font-size: 12px;
+        color: var(--danger);
+        font-weight: 800;
+    }
+
+    .pinDangerRow {
+        margin-top: 10px;
+        display: flex;
+        justify-content: flex-start;
+    }
+
+    .linkDanger {
+        background: transparent;
+        border: none;
+        color: rgba(var(--danger-rgb), 0.95);
+        cursor: pointer;
+        font-weight: 900;
+        padding: 6px 0;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+
+        .linkDanger:hover {
+            color: rgba(var(--danger-rgb), 1);
         }
 </style>
+

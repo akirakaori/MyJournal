@@ -1,21 +1,18 @@
-﻿
-@inject MyJournal.Services.AppState AppState
+﻿@inject MyJournal.Services.AppState AppState
 @inject NavigationManager NavManager
-
-@* This Page shows tab that can be seen on the left side of the application *@
 
 @implements IDisposable
 
-<div class="top-row ps-3 navbar navbar-dark">
+<div class="top-row ps-3 navbar">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">MyJournal.exe</a>
+        <a class="navbar-brand" href="">My Journal</a>
     </div>
 </div>
 
 <input type="checkbox" title="Navigation menu" class="navbar-toggler" />
 
 <div class="nav-scrollable sidenav">
-    <nav class="nav flex-column sidenav-content">
+    <nav class="nav flex-column nav-layout sidenav-content">
 
         @if (!AppState.IsLoggedIn)
         {
@@ -64,9 +61,6 @@
                         <span>Custom Tags</span>
                     </NavLink>
                 </div>
-
-
-
             </div>
 
             <!-- LOGOUT AT BOTTOM -->
@@ -81,63 +75,6 @@
         }
     </nav>
 </div>
-
-<style>
-    /* Sidebar layout */
-    .sidenav {
-        height: 100vh;
-        display: flex;
-        flex-direction: column;
-    }
-
-    .sidenav-content {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-    }
-
-    .nav-main {
-        flex-grow: 1;
-        padding-top: 10px;
-    }
-
-    .nav-footer {
-        margin-top: auto;
-        padding-bottom: 16px;
-        border-top: 1px solid rgba(255,255,255,0.08);
-    }
-
-    /* Nav links */
-    .nav-item-link {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-weight: 600;
-        border-radius: 8px;
-        padding: 10px 12px;
-        transition: background 0.15s ease;
-    }
-
-        .nav-item-link i {
-            font-size: 1.1rem;
-            opacity: 0.9;
-        }
-
-        .nav-item-link:hover {
-            background: rgba(255,255,255,0.08);
-        }
-
-    /* Logout emphasis */
-    .logout-btn {
-        width: 100%;
-        color: #f87171;
-    }
-
-        .logout-btn:hover {
-            background: rgba(248,113,113,0.12);
-            color: #fecaca;
-        }
-</style>
 
 @code {
     protected override void OnInitialized()

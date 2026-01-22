@@ -13,6 +13,9 @@ public class JournalEntries
     public string Title { get; set; } = "";
     public string Content { get; set; } = "";
 
+    public bool HasPin { get; set; } = false;
+    public string? Pin { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

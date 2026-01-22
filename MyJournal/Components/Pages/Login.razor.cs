@@ -43,7 +43,7 @@ public partial class Login
         if (isValid)
         {
             AppState.Login(_username);
-            NavManager.NavigateTo("/dashboard", replace: true);
+            NavManager.NavigateTo("/", replace: true);
         }
         else
         {

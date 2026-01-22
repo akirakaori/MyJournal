@@ -1,80 +1,154 @@
-﻿@page "/journalentry"
+﻿@namespace MyJournal.Components.Pages
+@page "/journalentry"
 @using JournalMaui.Services
 @using JournalMaui.Models
-@inject IJSRuntime JS
-
 @using System.Globalization
+@inject IJSRuntime JS
 @inject NavigationManager Nav
 
-<div class="page">
-    <header class="header">
-        <div>
-            <h1 class="title">Journal</h1>
-            <p class="subtitle">Write one entry per day.</p>
-        </div>
-    </header>
-
-    <section class="toolbarCard">
-        <div class="toolbarRow">
-            <div class="dateChip">
-                <span class="dot"></span>
-                <div class="dateText">
-                    <span class="dateLabel">Selected date</span>
-                    <span class="dateValue">@SelectedDate.ToString("dddd, dd MMM yyyy")</span>
-                </div>
-
-                <div class="metaItem">
-                    <span class="metaLabel">Created</span>
-                    <span class="metaValue">@CreatedAtText</span>
-                </div>
-                <div class="metaDivider"></div>
-                <div class="metaItem">
-                    <span class="metaLabel">Updated</span>
-                    <span class="metaValue">@UpdatedAtText</span>
-                </div>
+<div class="pageWrap @(ShowUnlockModal ? "blurAll" : "")">
+    <div class="page">
+        <header class="header">
+            <div>
+                <h1 class="title">Journal</h1>
+                <p class="subtitle">Write one entry per day.</p>
             </div>
+        </header>
 
-            <div class="btnGroup">
-                <button class="btn btnPrimary" @onclick="StartSave" disabled="@IsBusy" title="Save entry (will ask for title)">
-                    <span class="btnIcon">💾</span>
-                    <span>Save</span>
-                </button>
+        <section class="toolbarCard">
+            <div class="toolbarRow">
+                <div class="dateChip">
+                    <span class="dot"></span>
+                    <div class="dateText">
+                        <span class="dateLabel">Selected date</span>
+                        <span class="dateValue">@SelectedDate.ToString("dddd, dd MMM yyyy")</span>
+                    </div>
 
-                <button class="btn btnDanger" @onclick="Delete" disabled="@IsBusy" title="Delete entry (date+title if title is set)">
-                    <span class="btnIcon">🗑</span>
-                    <span>Delete</span>
-                </button>
-            </div>
-        </div>
-    </section>
+                    <div class="metaItem">
+                        <span class="metaLabel">Created</span>
+                        <span class="metaValue">@CreatedAtText</span>
+                    </div>
+                    <div class="metaDivider"></div>
+                    <div class="metaItem">
+                        <span class="metaLabel">Updated</span>
+                        <span class="metaValue">@UpdatedAtText</span>
+                    </div>
 
-    <main class="contentGrid">
-        <section class="editorCard">
-            <div class="cardHeader">
-                <h2 class="cardTitle">Entry</h2>
-                <span class="hint">
-                    @if (!string.IsNullOrWhiteSpace(CurrentTitle))
+                    @if (HasPin)
                     {
-                        <span>Title: <b>@CurrentTitle</b></span>
+                        <div class="metaDivider"></div>
+                        <div class="metaItem">
+                            <span class="metaLabel">Lock</span>
+                            <span class="metaValue">🔒 PIN</span>
+                        </div>
                     }
-                    else
-                    {
-                        <span>No title yet</span>
-                    }
-                </span>
-            </div>
+                </div>
 
-            @* Replace textarea with div for Quill *@
-            <div id="journal-description" class="editor"></div>
+                <div class="btnGroup">
+                    <button class="btn btnPrimary"
+                            @onclick="StartSave"
+                            disabled="@(IsBusy || IsLocked)"
+                            title="Save entry (will ask for title)">
+                        <span class="btnIcon">💾</span>
+                        <span>Save</span>
+                    </button>
 
-            <div class="editorFooter">
-                <span class="muted">Characters: @CharacterCount</span>
+                    <button class="btn btnDanger"
+                            @onclick="Delete"
+                            disabled="@(IsBusy || IsLocked)"
+                            title="Delete entry (date+title if title is set)">
+                        <span class="btnIcon">🗑</span>
+                        <span>Delete</span>
+                    </button>
+                </div>
             </div>
         </section>
-    </main>
+
+        <main class="contentGrid">
+            <section class="editorCard">
+                <div class="cardHeader">
+                    <h2 class="cardTitle">Entry</h2>
+                    <span class="hint">
+                        @if (!string.IsNullOrWhiteSpace(CurrentTitle))
+                        {
+                            <span>Title: <b>@CurrentTitle</b></span>
+                        }
+                        else
+                        {
+                            <span>No title yet</span>
+                        }
+                    </span>
+                </div>
+
+                <div id="journal-description" class="editor"></div>
+
+                <div class="editorFooter">
+                    <span class="muted">Characters: @CharacterCount</span>
+                    @if (IsLocked)
+                    {
+                        <span class="muted" style="margin-left:10px;">(Locked — enter PIN to view)</span>
+                    }
+                </div>
+            </section>
+        </main>
+    </div>
 </div>
 
-@* -------- Title Modal -------- *@
+@* -------- Unlock PIN Modal -------- *@
+@if (ShowUnlockModal)
+{
+    <div class="modalOverlay" @onclick="OnUnlockOverlayClick">
+        <div class="modalCard" @onclick:stopPropagation="true">
+            <div class="modalHeader">
+                <h3 class="modalTitle">Enter PIN to open</h3>
+                <button class="modalX" @onclick="CloseUnlockModal" title="Close">✕</button>
+            </div>
+
+            <div class="modalBody">
+                <div class="modalField">
+                    <label class="modalLabel">PIN</label>
+
+                    <div class="pinRow">
+                        <input class="modalInput pinInput"
+                               type="password"
+                               value="@UnlockPinInput"
+                               @oninput="OnUnlockPinInputChanged"
+                               placeholder="4 letters/numbers"
+                               maxlength="4"
+                               autocomplete="off"
+                               @onkeydown="HandleUnlockKeyDown" />
+
+                        <button type="button" class="pinBtn" @onclick="ClearUnlockPin" title="Clear">
+                            ✕
+                        </button>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(UnlockError))
+                    {
+                        <div class="pinError">@UnlockError</div>
+                    }
+
+                    <div class="pinHelp">
+                        This journal is protected. Enter the correct PIN to view it.
+                    </div>
+
+                    <div class="dangerLinkRow">
+                        <button type="button" class="dangerLink" @onclick="ForceDeleteLockedJournal" disabled="@IsBusy">
+                            Can’t remember PIN? Delete Journal
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modalFooter">
+                <button class="btn btnGhost" @onclick="CloseUnlockModal" disabled="@IsBusy">Cancel</button>
+                <button class="btn btnPrimary" @onclick="VerifyUnlockPin" disabled="@IsBusy">Unlock</button>
+            </div>
+        </div>
+    </div>
+}
+
+@* -------- Title Modal (Save) -------- *@
 @if (ShowTitleModal)
 {
     <div class="modalOverlay" @onclick="CloseTitleModal">
@@ -92,6 +166,37 @@
                            placeholder="e.g., My day, Study notes, Goals..."
                            @onkeydown="HandleTitleKeyDown" />
                 </div>
+
+                <div class="modalField pinField">
+                    <label class="modalLabel">PIN (optional)</label>
+
+                    <div class="pinRow">
+                        <input class="modalInput pinInput"
+                               type="@(PinMasked ? "password" : "text")"
+                               value="@PinInput"
+                               @oninput="OnPinInputChanged"
+                               placeholder="4 letters/numbers"
+                               maxlength="4"
+                               autocomplete="off" />
+
+                        <button type="button" class="pinBtn" @onclick="TogglePinMask" title="Show/Hide PIN">
+                            @((MarkupString)(PinMasked ? EyeSvg : EyeOffSvg))
+                        </button>
+
+                        <button type="button" class="pinBtn" @onclick="ClearPin" title="Clear PIN">
+                            ✕
+                        </button>
+                    </div>
+
+                    <div class="pinHelp">
+                        Leave empty for no lock. If set, it must be exactly 4 characters.
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(PinError))
+                    {
+                        <div class="pinError">@PinError</div>
+                    }
+                </div>
             </div>
 
             <div class="modalFooter">
@@ -103,59 +208,39 @@
 }
 
 <style>
-    :root {
-        --bg: #0b1020;
-        --card: rgba(255,255,255,0.06);
-        --card2: rgba(255,255,255,0.08);
-        --border: rgba(255,255,255,0.10);
-        --text: rgba(255,255,255,0.92);
-        --muted: rgba(255,255,255,0.62);
-        --muted2: rgba(255,255,255,0.45);
-        --primary: #6ea8fe;
-        --primary2: #3b82f6;
-        --danger: #ef4444;
-        --shadow: 0 12px 40px rgba(0,0,0,0.35);
+    /* Scope everything to this page to avoid affecting other pages */
+    .pageWrap {
+        /* Use MudBlazor theme variables (auto changes with IsDarkMode) */
+        --bg: var(--mud-palette-background);
+        --card: rgba(var(--mud-palette-surface-rgb), 0.92);
+        --card2: rgba(var(--mud-palette-surface-rgb), 0.98);
+        --border: var(--mud-palette-divider);
+        --text: var(--mud-palette-text-primary);
+        --muted: var(--mud-palette-text-secondary);
+        --muted2: rgba(var(--mud-palette-text-secondary-rgb), 0.75);
+        --primary: var(--mud-palette-primary);
+        --primary-rgb: var(--mud-palette-primary-rgb);
+        --danger: var(--mud-palette-error);
+        --danger-rgb: var(--mud-palette-error-rgb);
+        --shadow: 0 12px 40px rgba(0,0,0,0.18);
         --radius: 16px;
+        background: var(--bg);
     }
 
-    .meta {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 10px 12px;
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: 9px;
-        box-shadow: var(--shadow);
-        white-space: nowrap;
-        margin-bottom: 8px;
+    /* Blur the whole UI when PIN modal is active */
+    .blurAll {
+        filter: blur(18px);
+        pointer-events: none;
+        user-select: none;
+        opacity: 0.18;
     }
 
-    .metaItem {
-        display: grid;
-        gap: 2px;
-    }
-
-    .metaLabel {
-        font-size: 11px;
-        color: var(--muted2);
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-    }
-
-    .metaValue {
-        font-size: 13px;
+    .page {
         color: var(--text);
     }
 
-    .metaDivider {
-        width: 1px;
-        height: 24px;
-        background: var(--border);
-    }
-
     .toolbarCard {
-        background: linear-gradient(180deg, var(--card2), var(--card));
+        background: var(--card2);
         border: 1px solid var(--border);
         border-radius: var(--radius);
         box-shadow: var(--shadow);
@@ -178,7 +263,7 @@
         padding: 10px 12px;
         border-radius: 999px;
         border: 1px solid var(--border);
-        background: rgba(0,0,0,0.20);
+        background: rgba(var(--mud-palette-surface-rgb), 0.75);
     }
 
     .dot {
@@ -196,16 +281,31 @@
         line-height: 1.2;
     }
 
-    .dateLabel {
+    .dateLabel,
+    .metaLabel {
         font-size: 11px;
         color: var(--muted2);
         text-transform: uppercase;
         letter-spacing: 0.12em;
     }
 
-    .dateValue {
+    .dateValue,
+    .metaValue {
         font-size: 13px;
         color: var(--text);
+    }
+
+    .metaItem {
+        display: grid;
+        gap: 2px;
+        margin-left: 10px;
+    }
+
+    .metaDivider {
+        width: 1px;
+        height: 24px;
+        background: var(--border);
+        margin-left: 10px;
     }
 
     .btnGroup {
@@ -222,18 +322,17 @@
         border-radius: 12px;
         padding: 10px 12px;
         border: 1px solid var(--border);
-        background: rgba(0,0,0,0.18);
+        background: rgba(var(--mud-palette-surface-rgb), 0.75);
         color: var(--text);
         cursor: pointer;
-        transition: transform .04s ease, background .15s ease, border-color .15s ease, opacity .15s ease;
+        transition: transform .04s ease, background .15s ease, opacity .15s ease;
         user-select: none;
         font-weight: 600;
         font-size: 13px;
     }
 
         .btn:hover:not(:disabled) {
-            background: rgba(255,255,255,0.08);
-            border-color: rgba(255,255,255,0.18);
+            background: rgba(var(--mud-palette-surface-rgb), 0.90);
         }
 
         .btn:active:not(:disabled) {
@@ -252,23 +351,23 @@
     }
 
     .btnPrimary {
-        background: linear-gradient(180deg, rgba(110,168,254,0.25), rgba(59,130,246,0.18));
-        border-color: rgba(110,168,254,0.35);
+        background: rgba(var(--primary-rgb), 0.14);
+        border-color: rgba(var(--primary-rgb), 0.30);
     }
 
         .btnPrimary:hover:not(:disabled) {
-            background: linear-gradient(180deg, rgba(110,168,254,0.35), rgba(59,130,246,0.22));
-            border-color: rgba(110,168,254,0.5);
+            background: rgba(var(--primary-rgb), 0.20);
+            border-color: rgba(var(--primary-rgb), 0.40);
         }
 
     .btnDanger {
-        background: linear-gradient(180deg, rgba(239,68,68,0.22), rgba(239,68,68,0.14));
-        border-color: rgba(239,68,68,0.35);
+        background: rgba(var(--danger-rgb), 0.12);
+        border-color: rgba(var(--danger-rgb), 0.28);
     }
 
         .btnDanger:hover:not(:disabled) {
-            background: linear-gradient(180deg, rgba(239,68,68,0.30), rgba(239,68,68,0.18));
-            border-color: rgba(239,68,68,0.55);
+            background: rgba(var(--danger-rgb), 0.18);
+            border-color: rgba(var(--danger-rgb), 0.40);
         }
 
     .contentGrid {
@@ -278,7 +377,7 @@
     }
 
     .editorCard {
-        background: linear-gradient(180deg, var(--card2), var(--card));
+        background: var(--card2);
         border: 1px solid var(--border);
         border-radius: var(--radius);
         box-shadow: var(--shadow);
@@ -287,7 +386,7 @@
 
     .cardHeader {
         padding: 14px 14px 10px;
-        border-bottom: 1px solid rgba(255,255,255,0.10);
+        border-bottom: 1px solid var(--border);
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -299,7 +398,8 @@
         font-size: 14px;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: rgba(255,255,255,0.82);
+        color: var(--text);
+        opacity: 0.85;
     }
 
     .hint {
@@ -311,20 +411,24 @@
         max-width: 60%;
     }
 
-    /* Update editor styles for Quill div */
+    /* =========================
+         Quill Editor Theming
+         ========================= */
+
     .editor {
         min-height: 420px;
-        background: rgba(0,0,0,0.18);
+        background: rgba(var(--mud-palette-surface-rgb), 0.65);
         color: var(--text);
         font-size: 14px;
         line-height: 1.55;
     }
 
-        /* Quill-specific styles */
+        /* Keep the journal content font normal (not monospace) */
         .editor ::deep .ql-container {
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-family: inherit;
             font-size: 14px;
             line-height: 1.55;
+            border: none;
         }
 
         .editor ::deep .ql-editor {
@@ -333,36 +437,66 @@
         }
 
             .editor ::deep .ql-editor.ql-blank::before {
-                color: rgba(255,255,255,0.35);
+                color: rgba(var(--mud-palette-text-secondary-rgb), 0.65);
                 content: attr(data-placeholder);
             }
 
+        /* Toolbar surface */
         .editor ::deep .ql-toolbar {
             border: none;
-            border-bottom: 1px solid rgba(255,255,255,0.10);
-            background: rgba(0,0,0,0.12);
+            border-bottom: 1px solid var(--border);
+            background: rgba(var(--mud-palette-surface-rgb), 0.85);
         }
 
-        .editor ::deep .ql-container {
-            border: none;
-        }
-
+        /* ✅ Fix toolbar icons (stroke/fill) for dark mode */
         .editor ::deep .ql-stroke {
-            stroke: var(--muted);
+            stroke: var(--text) !important;
+            opacity: 0.85;
         }
 
         .editor ::deep .ql-fill {
-            fill: var(--muted);
+            fill: var(--text) !important;
+            opacity: 0.85;
         }
 
-        .editor ::deep .ql-picker-label {
-            color: var(--muted);
+        .editor ::deep .ql-picker-label,
+        .editor ::deep .ql-picker-item {
+            color: var(--text) !important;
+            opacity: 0.9;
         }
+
+        /* Buttons hover/active */
+        .editor ::deep .ql-toolbar button:hover,
+        .editor ::deep .ql-toolbar button:focus {
+            background: rgba(var(--primary-rgb), 0.10);
+            border-radius: 10px;
+        }
+
+        .editor ::deep .ql-toolbar button.ql-active {
+            background: rgba(var(--primary-rgb), 0.18);
+            border-radius: 10px;
+        }
+
+        /* Dropdown panel background + text */
+        .editor ::deep .ql-picker-options {
+            background: rgba(var(--mud-palette-surface-rgb), 0.98) !important;
+            border: 1px solid var(--border) !important;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+        }
+
+            .editor ::deep .ql-picker-options .ql-picker-item {
+                color: var(--text) !important;
+            }
+
+                .editor ::deep .ql-picker-options .ql-picker-item:hover,
+                .editor ::deep .ql-picker-options .ql-picker-item.ql-selected {
+                    background: rgba(var(--primary-rgb), 0.12);
+                }
 
     .editorFooter {
         padding: 10px 14px;
-        border-top: 1px solid rgba(255,255,255,0.10);
-        background: rgba(0,0,0,0.12);
+        border-top: 1px solid var(--border);
+        background: rgba(var(--mud-palette-surface-rgb), 0.75);
     }
 
     .muted {
@@ -371,7 +505,9 @@
         font-weight: 600;
     }
 
-    /* Modal */
+    /* =========================
+         Modal (theme-aware)
+         ========================= */
     .modalOverlay {
         position: fixed;
         inset: 0;
@@ -384,11 +520,12 @@
 
     .modalCard {
         width: min(520px, 100%);
-        background: linear-gradient(180deg, rgba(20,24,40,0.98), rgba(10,14,24,0.98));
-        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(var(--mud-palette-surface-rgb), 0.98);
+        border: 1px solid var(--border);
         border-radius: 16px;
-        box-shadow: 0 18px 70px rgba(0,0,0,0.6);
+        box-shadow: 0 18px 70px rgba(0,0,0,0.35);
         overflow: hidden;
+        color: var(--text);
     }
 
     .modalHeader {
@@ -396,7 +533,7 @@
         align-items: center;
         justify-content: space-between;
         padding: 14px 14px 10px;
-        border-bottom: 1px solid rgba(255,255,255,0.10);
+        border-bottom: 1px solid var(--border);
     }
 
     .modalTitle {
@@ -404,13 +541,14 @@
         font-size: 14px;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: rgba(255,255,255,0.86);
+        color: var(--text);
+        opacity: 0.9;
     }
 
     .modalX {
-        border: 1px solid rgba(255,255,255,0.14);
-        background: rgba(0,0,0,0.2);
-        color: rgba(255,255,255,0.85);
+        border: 1px solid var(--border);
+        background: rgba(var(--mud-palette-surface-rgb), 0.75);
+        color: var(--text);
         border-radius: 10px;
         padding: 6px 10px;
         cursor: pointer;
@@ -428,7 +566,7 @@
 
     .modalLabel {
         font-size: 11px;
-        color: rgba(255,255,255,0.55);
+        color: var(--muted2);
         text-transform: uppercase;
         letter-spacing: 0.12em;
     }
@@ -436,9 +574,9 @@
     .modalInput {
         padding: 12px;
         border-radius: 12px;
-        border: 1px solid rgba(255,255,255,0.14);
-        background: rgba(0,0,0,0.22);
-        color: rgba(255,255,255,0.92);
+        border: 1px solid var(--border);
+        background: rgba(var(--mud-palette-surface-rgb), 0.75);
+        color: var(--text);
         outline: none;
         font-weight: 650;
     }
@@ -448,11 +586,85 @@
         justify-content: flex-end;
         gap: 10px;
         padding: 12px 14px 14px;
-        border-top: 1px solid rgba(255,255,255,0.10);
-        background: rgba(0,0,0,0.10);
+        border-top: 1px solid var(--border);
+        background: rgba(var(--mud-palette-surface-rgb), 0.75);
     }
 
     .btnGhost {
         background: transparent;
     }
+
+    .pinField {
+        margin-top: 12px;
+    }
+
+    .pinRow {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .pinInput {
+        flex: 1;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+    }
+
+    .pinBtn {
+        border: 1px solid var(--border);
+        background: rgba(var(--mud-palette-surface-rgb), 0.75);
+        color: var(--text);
+        border-radius: 12px;
+        padding: 10px 12px;
+        cursor: pointer;
+        font-weight: 800;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 44px;
+    }
+
+        .pinBtn:hover {
+            background: rgba(var(--mud-palette-surface-rgb), 0.90);
+        }
+
+        .pinBtn svg {
+            width: 18px;
+            height: 18px;
+            stroke: var(--text);
+        }
+
+    .pinHelp {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 8px;
+    }
+
+    .pinError {
+        margin-top: 6px;
+        font-size: 12px;
+        color: var(--danger);
+        font-weight: 700;
+    }
+
+    .dangerLinkRow {
+        margin-top: 12px;
+    }
+
+    .dangerLink {
+        background: transparent;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        color: var(--danger);
+        font-weight: 800;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+
+        .dangerLink:disabled {
+            opacity: .55;
+            cursor: not-allowed;
+        }
 </style>
+

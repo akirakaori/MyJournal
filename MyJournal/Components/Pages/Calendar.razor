@@ -1,4 +1,4 @@
-@page "/calendar"
+﻿@page "/calendar"
 
 <div class="container py-3">
     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -10,7 +10,14 @@
         <div class="alert alert-danger">@Error</div>
     }
 
-    <div id="@CalendarElementId"></div>
+
+    @* <div id="@CalendarElementId"></div> *@
+
+    <div class="fcWrap">
+        <div id="@CalendarElementId"></div>
+    </div>
+
+
 
     @if (ShowEditor)
     {
@@ -41,4 +48,308 @@
             </div>
         </div>
     }
+
+    @if (ShowFutureDateModal)
+    {
+        <div class="modal show d-block" tabindex="-1" style="background: rgba(0,0,0,.45);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Not Allowed</h5>
+                        <button type="button" class="btn-close" @onclick="CloseFutureDateModal"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <p class="mb-0">
+                            You can’t create or open journals for <b>future dates</b>.
+                        </p>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button class="btn btn-primary" @onclick="CloseFutureDateModal">
+                            OK
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
 </div>
+
+<style>
+
+    /* Page text */
+    .container {
+        color: var(--mud-palette-text-primary);
+    }
+
+    /* ===== Fix modal text visibility in dark mode ===== */
+
+    .modal-content {
+        background: rgba(20, 24, 40, 0.98);
+        color: rgba(255, 255, 255, 0.92);
+        border: 1px solid rgba(255,255,255,0.14);
+    }
+
+    .modal-header {
+        border-bottom: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .modal-footer {
+        border-top: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .modal-title {
+        color: rgba(255,255,255,0.95);
+        font-weight: 800;
+    }
+
+    .modal-body {
+        color: rgba(255,255,255,0.85);
+    }
+
+    /* Close (X) button */
+    .btn-close {
+        filter: invert(1);
+        opacity: 0.75;
+    }
+
+        .btn-close:hover {
+            opacity: 1;
+        }
+
+
+    /* Wrapper */
+    .fcWrap {
+        --fc-bg: rgba(var(--mud-palette-surface-rgb), 0.96);
+        --fc-bg2: rgba(var(--mud-palette-surface-rgb), 0.80);
+        --fc-border: var(--mud-palette-divider);
+        --fc-text: var(--mud-palette-text-primary);
+        --fc-muted: var(--mud-palette-text-secondary);
+        --fc-primary: var(--mud-palette-primary);
+        --fc-primary-rgb: var(--mud-palette-primary-rgb);
+    }
+
+        /* Calendar root */
+        .fcWrap .fc {
+            color: var(--fc-text);
+            background: var(--fc-bg);
+            border: 1px solid var(--fc-border);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+            /* Toolbar */
+            .fcWrap .fc .fc-toolbar {
+                padding: 12px 14px;
+                margin: 0;
+                background: var(--fc-bg2);
+                border-bottom: 1px solid var(--fc-border);
+            }
+
+            .fcWrap .fc .fc-toolbar-title {
+                color: var(--fc-text) !important;
+                font-weight: 800;
+            }
+
+            /* Prev / Next buttons */
+            .fcWrap .fc .fc-button {
+                background: rgba(var(--mud-palette-surface-rgb), 0.88) !important;
+                border: 1px solid var(--fc-border) !important;
+                color: var(--fc-text) !important;
+                border-radius: 12px !important;
+                box-shadow: none !important;
+                font-weight: 800;
+            }
+
+                .fcWrap .fc .fc-button:hover {
+                    background: rgba(var(--mud-palette-surface-rgb), 0.98) !important;
+                    border-color: rgba(var(--mud-palette-text-primary-rgb), 0.14) !important;
+                }
+
+                .fcWrap .fc .fc-button:focus,
+                .fcWrap .fc .fc-button:active {
+                    outline: none !important;
+                    box-shadow: 0 0 0 3px rgba(var(--fc-primary-rgb), 0.18) !important;
+                }
+
+            /* Grid borders */
+            .fcWrap .fc .fc-scrollgrid,
+            .fcWrap .fc .fc-scrollgrid-section,
+            .fcWrap .fc td,
+            .fcWrap .fc th {
+                border-color: var(--fc-border) !important;
+            }
+
+            /* Day of week header */
+            .fcWrap .fc .fc-col-header-cell-cushion {
+                color: rgba(var(--mud-palette-text-secondary-rgb), 0.95) !important;
+                font-weight: 800;
+                text-decoration: none;
+            }
+
+            /* ✅ DAY NUMBERS (MAIN FIX) */
+            .fcWrap .fc .fc-daygrid-day-number {
+                color: var(--fc-text) !important;
+                font-weight: 800;
+                opacity: 0.95;
+                text-decoration: none;
+            }
+
+            /* Day cells */
+            .fcWrap .fc .fc-daygrid-day {
+                background: rgba(var(--mud-palette-surface-rgb), 0.55);
+            }
+
+                .fcWrap .fc .fc-daygrid-day:hover {
+                    background: rgba(var(--fc-primary-rgb), 0.05);
+                }
+
+            /* Today highlight */
+            .fcWrap .fc .fc-day-today {
+                background: rgba(var(--fc-primary-rgb), 0.12) !important;
+            }
+
+            /* Cursor */
+            .fcWrap .fc .fc-daygrid-day-frame {
+                cursor: pointer;
+            }
+
+            /* Events */
+            .fcWrap .fc .fc-event {
+                border: 1px solid rgba(var(--fc-primary-rgb), 0.35) !important;
+                background: rgba(var(--fc-primary-rgb), 0.16) !important;
+                color: var(--fc-text) !important;
+                border-radius: 10px !important;
+            }
+
+                .fcWrap .fc .fc-event:hover {
+                    background: rgba(var(--fc-primary-rgb), 0.22) !important;
+                    border-color: rgba(var(--fc-primary-rgb), 0.50) !important;
+                }
+
+            .fcWrap .fc .fc-event-title,
+            .fcWrap .fc .fc-event-time {
+                color: var(--fc-text) !important;
+            }
+
+            /* +X more link */
+            .fcWrap .fc .fc-daygrid-more-link {
+                color: var(--fc-primary) !important;
+                font-weight: 800;
+            }
+
+            /* Popover */
+            .fcWrap .fc .fc-popover {
+                background: rgba(var(--mud-palette-surface-rgb), 0.98) !important;
+                color: var(--fc-text) !important;
+                border: 1px solid var(--fc-border) !important;
+                border-radius: 14px !important;
+                box-shadow: 0 18px 60px rgba(0,0,0,0.22) !important;
+            }
+
+            .fcWrap .fc .fc-popover-header {
+                background: rgba(var(--mud-palette-surface-rgb), 0.88) !important;
+                border-bottom: 1px solid var(--fc-border) !important;
+                color: var(--fc-text) !important;
+            }
+
+            /*  Fix the white strip (day-of-week header row) */
+            .fcWrap .fc .fc-col-header,
+            .fcWrap .fc .fc-col-header-cell,
+            .fcWrap .fc .fc-scrollgrid-section-header td,
+            .fcWrap .fc .fc-scrollgrid-section-header th {
+                background: rgba(var(--mud-palette-surface-rgb), 0.80) !important;
+            }
+
+            /* Make day names visible + keep premium spacing */
+            .fcWrap .fc .fc-col-header-cell-cushion {
+                color: rgba(var(--mud-palette-text-secondary-rgb), 0.95) !important;
+                font-weight: 800;
+                text-decoration: none;
+                padding: 10px 0; /* gives height so it doesn't look like a thin strip */
+                display: block;
+            }
+
+            /* Sometimes FullCalendar sets th background separately */
+            .fcWrap .fc.fc-theme-standard th {
+                background: rgba(var(--mud-palette-surface-rgb), 0.80) !important;
+            }
+
+
+            /* Remove pill look only for journal events */
+            .fcWrap .fc .journalDay.fc-event {
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+                margin: 2px 6px !important;
+            }
+
+            /* One-line row with dot + text */
+            .fcWrap .fc .journalDay .fc-event-main {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding: 2px 2px;
+                min-width: 0;
+            }
+
+            /* Hide time */
+            .fcWrap .fc .journalDay .fc-event-time {
+                display: none !important;
+            }
+
+            /* Title like Google */
+            .fcWrap .fc .journalDay .fc-event-title {
+                color: rgba(var(--mud-palette-text-primary-rgb), 0.92) !important;
+                font-weight: 700;
+                font-size: 12px;
+                line-height: 1.2;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            /* Dot before title */
+            .fcWrap .fc .journalDay .fc-event-main::before {
+                content: "";
+                width: 8px;
+                height: 8px;
+                border-radius: 999px;
+                background: rgba(var(--mud-palette-primary-rgb), 0.95);
+                flex: 0 0 auto;
+                box-shadow: 0 0 0 2px rgba(var(--mud-palette-primary-rgb), 0.14);
+            }
+
+            /* PIN journals dot = warning */
+            .fcWrap .fc .journalDay.pinned .fc-event-main::before {
+                background: rgba(var(--mud-palette-warning-rgb), 0.95);
+                box-shadow: 0 0 0 2px rgba(var(--mud-palette-warning-rgb), 0.16);
+            }
+
+            /* Hover accent */
+            .fcWrap .fc .journalDay.fc-event:hover .fc-event-title {
+                color: rgba(var(--mud-palette-primary-rgb), 0.95) !important;
+            }
+
+            .fcWrap .fc .fc-daygrid-day-frame:has(.journalDay) {
+                background: rgba(var(--mud-palette-primary-rgb), 0.06);
+            }
+
+                .fcWrap .fc .fc-daygrid-day-frame:has(.journalDay):hover {
+                    background: rgba(var(--mud-palette-primary-rgb), 0.10);
+                }
+
+            .fcWrap .fc .fc-daygrid-day-frame:has(.journalDay.pinned) {
+                background: rgba(var(--mud-palette-warning-rgb), 0.08);
+            }
+
+            /* Optional: soften selection color (the purple-ish selected day) */
+            .fcWrap .fc .fc-highlight {
+                background: rgba(var(--mud-palette-primary-rgb), 0.10) !important;
+            }
+
+</style>
+

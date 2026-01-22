@@ -12,6 +12,9 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
     [Inject] private JournalDatabases Db { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
 
+    [Inject] private PinUnlockService PinUnlock { get; set; } = default!;
+
+
     [SupplyParameterFromQuery(Name = "date")]
     public string? Date { get; set; }
 
@@ -36,6 +39,41 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
     private string CreatedAtText => CreatedAt?.ToString("yyyy-MM-dd HH:mm") ?? "-";
     private string UpdatedAtText => UpdatedAt?.ToString("yyyy-MM-dd HH:mm") ?? "-";
 
+    // ---------------------------
+    // Save PIN (optional)
+    // ---------------------------
+    private string PinInput = "";
+    private bool PinMasked = true;
+    private string PinError = "";
+    private bool HasPin = false;
+
+    // ---------------------------
+    // Unlock gate
+    // ---------------------------
+    private bool IsLocked = false;
+    private bool ShowUnlockModal = false;
+    private string UnlockPinInput = "";
+    private string UnlockError = "";
+
+    // Hold protected data until unlock
+    private string _lockedContent = "";
+    private string _lockedTitle = "";
+
+    // Eye icons (used only in SAVE modal)
+    private const string EyeSvg =
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 24 24\" stroke-width=\"2\" stroke=\"currentColor\">" +
+        "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z\"/>" +
+        "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15 12a3 3 0 11-6 0 3 3 0 016 0z\"/>" +
+        "</svg>";
+
+    private const string EyeOffSvg =
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 24 24\" stroke-width=\"2\" stroke=\"currentColor\">" +
+        "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M3 3l18 18\"/>" +
+        "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M10.477 10.48a3 3 0 104.243 4.243\"/>" +
+        "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9.88 5.098A10.477 10.477 0 0112 5c4.477 0 8.268 2.943 9.542 7a10.55 10.55 0 01-4.132 5.412\"/>" +
+        "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M6.228 6.228A10.45 10.45 0 002.458 12c1.274 4.057 5.065 7 9.542 7 1.109 0 2.176-.18 3.176-.512\"/>" +
+        "</svg>";
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -43,11 +81,8 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
             _dotNetRef = DotNetObjectReference.Create(this);
             await JS.InvokeVoidAsync("initQuill", "journal-description", _dotNetRef);
 
-            // Set initial content if exists
-            if (!string.IsNullOrEmpty(Content))
-            {
-                await JS.InvokeVoidAsync("setQuillHtml", Content);
-            }
+            // If locked, keep editor empty
+            await JS.InvokeVoidAsync("setQuillHtml", IsLocked ? "" : (Content ?? ""));
         }
     }
 
@@ -65,7 +100,6 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
         {
             return parsed.Date;
         }
-
         return DateTime.Today;
     }
 
@@ -78,6 +112,15 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
         {
             _current = await Db.GetByDateAsync(SelectedDate);
 
+            // reset lock state for new date
+            IsLocked = false;
+            ShowUnlockModal = false;
+            UnlockPinInput = "";
+            UnlockError = "";
+
+            _lockedContent = "";
+            _lockedTitle = "";
+
             if (_current is null)
             {
                 Content = "";
@@ -85,27 +128,55 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
                 CreatedAt = null;
                 UpdatedAt = null;
                 CharacterCount = 0;
+
+                HasPin = false;
+                PinInput = "";
+                PinError = "";
+
                 Status = "No entry for this date. Start writing!";
 
-                // Clear Quill editor
                 if (_dotNetRef is not null)
-                {
                     await JS.InvokeVoidAsync("setQuillHtml", "");
-                }
             }
             else
             {
-                Content = _current.Content ?? "";
-                CurrentTitle = _current.Title ?? "";
                 CreatedAt = _current.CreatedAt;
                 UpdatedAt = _current.UpdatedAt;
-                Status = "Loaded.";
+                HasPin = _current.HasPin;
 
-                // Update Quill editor with loaded content
-                if (_dotNetRef is not null)
+                if (_current.HasPin && !PinUnlock.IsUnlocked(_current.DateKey))
                 {
-                    await JS.InvokeVoidAsync("setQuillHtml", Content);
+                    // LOCK (only when not already unlocked)
+                    IsLocked = true;
+                    ShowUnlockModal = true;
+
+                    _lockedContent = _current.Content ?? "";
+                    _lockedTitle = _current.Title ?? "";
+
+                    Content = "";
+                    CurrentTitle = _lockedTitle; // show title only
+                    CharacterCount = 0;
+
+                    if (_dotNetRef is not null)
+                        await JS.InvokeVoidAsync("setQuillHtml", "");
+
+                    Status = "Locked.";
                 }
+                else
+                {
+                    // Either not PIN protected OR already unlocked via PinUnlockService
+                    IsLocked = false;
+                    ShowUnlockModal = false;
+
+                    Content = _current.Content ?? "";
+                    CurrentTitle = _current.Title ?? "";
+
+                    if (_dotNetRef is not null)
+                        await JS.InvokeVoidAsync("setQuillHtml", Content);
+
+                    Status = "Loaded.";
+                }
+
             }
         }
         finally
@@ -114,34 +185,158 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
         }
     }
 
-    /// <summary>
-    /// Called from JavaScript when Quill content changes
-    /// </summary>
     [JSInvokable]
     public void OnQuillContentChanged(string html, int length)
     {
+        if (IsLocked) return;
         Content = html;
         CharacterCount = length;
         StateHasChanged();
     }
 
+    // ---------------------------
+    // Unlock modal
+    // ---------------------------
+    private void OnUnlockOverlayClick()
+    {
+        // keep strict: no close by clicking outside
+    }
+
+    private void CloseUnlockModal()
+    {
+        // user can cancel, but stays locked
+        ShowUnlockModal = false;
+        Navigation.NavigateTo("/dashboard");
+
+    }
+
+    private void OnUnlockPinInputChanged(ChangeEventArgs e)
+    {
+        UnlockPinInput = NormalizePin(e.Value?.ToString() ?? "");
+        UnlockError = "";
+    }
+
+    private void ClearUnlockPin()
+    {
+        UnlockPinInput = "";
+        UnlockError = "";
+    }
+
+    private async Task HandleUnlockKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await VerifyUnlockPin();
+        else if (e.Key == "Escape")
+            CloseUnlockModal();
+    }
+
+
+    private async Task VerifyUnlockPin()
+    {
+        if (_current is null || !_current.HasPin)
+        {
+            IsLocked = false;
+            ShowUnlockModal = false;
+            return;
+        }
+
+        UnlockError = "";
+        var pin = NormalizePin(UnlockPinInput);
+
+        if (string.IsNullOrWhiteSpace(pin) || pin.Length != 4)
+        {
+            UnlockError = "Please enter a valid 4-character PIN.";
+            return;
+        }
+
+        var stored = NormalizePin(_current.Pin ?? "");
+
+        if (pin != stored)
+        {
+            UnlockError = "Incorrect PIN. Try again.";
+            return;
+        }
+
+        // Unlock success
+        IsLocked = false;
+        ShowUnlockModal = false;
+
+        Content = _lockedContent;
+        CurrentTitle = _lockedTitle;
+
+        if (_dotNetRef is not null)
+            await JS.InvokeVoidAsync("setQuillHtml", Content);
+
+        Status = "Unlocked.";
+    }
+
+    private async Task ForceDeleteLockedJournal()
+    {
+        IsBusy = true;
+        Status = "";
+
+        try
+        {
+            await Db.DeleteAsync(SelectedDate);
+
+            _current = null;
+
+            IsLocked = false;
+            ShowUnlockModal = false;
+
+            Content = "";
+            CurrentTitle = "";
+            CreatedAt = null;
+            UpdatedAt = null;
+            CharacterCount = 0;
+
+            HasPin = false;
+            PinInput = "";
+            PinError = "";
+
+            _lockedContent = "";
+            _lockedTitle = "";
+
+            UnlockPinInput = "";
+            UnlockError = "";
+
+            if (_dotNetRef is not null)
+                await JS.InvokeVoidAsync("setQuillHtml", "");
+
+            Status = "Deleted.";
+            Navigation.NavigateTo("/calendar?refresh=1");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    // ---------------------------
+    // Save flow (title modal)
+    // ---------------------------
     private async Task StartSave()
     {
-        // Get latest content from Quill
+        if (IsLocked) return;
+
         Content = await JS.InvokeAsync<string>("getQuillHtml");
 
         Status = "";
         TitleInput = string.IsNullOrWhiteSpace(CurrentTitle) ? "" : CurrentTitle;
+
+        PinInput = "";
+        PinError = "";
+        PinMasked = true;
+
         ShowTitleModal = true;
     }
 
-    private void CloseTitleModal()
-    {
-        ShowTitleModal = false;
-    }
+    private void CloseTitleModal() => ShowTitleModal = false;
 
     private async Task ConfirmSave()
     {
+        if (IsLocked) return;
+
         var title = (TitleInput ?? "").Trim();
         if (string.IsNullOrWhiteSpace(title))
         {
@@ -149,21 +344,32 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
             return;
         }
 
+        PinError = "";
+        var pin = NormalizePin(PinInput);
+
+        if (!string.IsNullOrEmpty(pin) && pin.Length != 4)
+        {
+            PinError = "PIN must be exactly 4 characters (or leave it empty).";
+            return;
+        }
+
         ShowTitleModal = false;
-        await SaveWithTitleAsync(title);
+        await SaveWithTitleAsync(title, pin);
     }
 
-    private async Task SaveWithTitleAsync(string title)
+    private async Task SaveWithTitleAsync(string title, string pin)
     {
         IsBusy = true;
         Status = "";
 
         try
         {
-            // Ensure we have the latest content from Quill
             Content = await JS.InvokeAsync<string>("getQuillHtml");
 
-            await Db.SaveAsync(SelectedDate, title, Content);
+            var hasPin = !string.IsNullOrEmpty(pin);
+            var pinToSave = hasPin ? pin : null;
+
+            await Db.SaveAsync(SelectedDate, title, Content, hasPin, pinToSave);
 
             _current = await Db.GetByDateAsync(SelectedDate);
 
@@ -171,10 +377,9 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
             Content = _current?.Content ?? Content;
             CreatedAt = _current?.CreatedAt;
             UpdatedAt = _current?.UpdatedAt;
+            HasPin = _current?.HasPin ?? hasPin;
 
             Status = "Saved.";
-
-            // Go back to calendar so marker appears immediately
             Navigation.NavigateTo("/viewjournals?refresh=1");
         }
         catch (Exception ex)
@@ -189,6 +394,8 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
 
     private async Task Delete()
     {
+        if (IsLocked) return;
+
         IsBusy = true;
         Status = "";
 
@@ -203,15 +410,15 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
             UpdatedAt = null;
             CharacterCount = 0;
 
+            HasPin = false;
+            PinInput = "";
+            PinError = "";
+
             Status = "Deleted.";
 
-            // Clear Quill editor
             if (_dotNetRef is not null)
-            {
                 await JS.InvokeVoidAsync("setQuillHtml", "");
-            }
 
-            // Go back to calendar so marker disappears immediately
             Navigation.NavigateTo("/calendar?refresh=1");
         }
         finally
@@ -223,13 +430,44 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
     private async Task HandleTitleKeyDown(KeyboardEventArgs e)
     {
         if (e.Key == "Enter")
-        {
             await ConfirmSave();
-        }
         else if (e.Key == "Escape")
-        {
             CloseTitleModal();
-        }
+    }
+
+    // ---------------------------
+    // PIN helpers (save modal)
+    // ---------------------------
+    private void TogglePinMask() => PinMasked = !PinMasked;
+
+    private void ClearPin()
+    {
+        PinInput = "";
+        PinError = "";
+    }
+
+    private void OnPinInputChanged(ChangeEventArgs e)
+    {
+        PinInput = NormalizePin(e.Value?.ToString() ?? "");
+
+        if (!string.IsNullOrEmpty(PinInput) && PinInput.Length is > 0 and < 4)
+            PinError = "PIN must be exactly 4 characters.";
+        else
+            PinError = "";
+    }
+
+    private static string NormalizePin(string input)
+    {
+        var s = new string((input ?? "")
+            .Where(c => !char.IsWhiteSpace(c))
+            .ToArray())
+            .ToUpperInvariant();
+
+        s = new string(s.Where(char.IsLetterOrDigit).ToArray());
+
+        if (s.Length > 4) s = s.Substring(0, 4);
+
+        return s;
     }
 
     public async ValueTask DisposeAsync()

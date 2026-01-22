@@ -8,10 +8,65 @@ main {
     flex: 1;
 }
 
+/* =========================
+   Sidebar (Theme-aware)
+   ========================= */
 .sidebar {
-    background-image: linear-gradient(180deg, rgb(5, 39, 103) 0%, #3a0647 70%);
+    /* Base surface (changes with theme; not pure white/black) */
+    background-color: var(--mud-palette-surface);
+    /* Soft gradient overlay using theme palette */
+    background-image: linear-gradient( 180deg, rgba(var(--mud-palette-primary-rgb), 0.18) 0%, rgba(var(--mud-palette-secondary-rgb), 0.14) 70% );
+    border-right: 1px solid var(--mud-palette-divider);
 }
 
+    /* Make NavMenu text/icons follow theme */
+    .sidebar ::deep a,
+    .sidebar ::deep .mud-nav-link,
+    .sidebar ::deep .mud-navmenu .mud-nav-link,
+    .sidebar ::deep .nav-link {
+        color: var(--mud-palette-text-primary);
+    }
+
+    /* Optional: if your NavMenu uses muted/secondary text anywhere */
+    .sidebar ::deep .mud-typography,
+    .sidebar ::deep .mud-nav-link-text,
+    .sidebar ::deep .nav-item {
+        color: var(--mud-palette-text-primary);
+    }
+
+    /* Icons inside nav */
+    .sidebar ::deep .mud-icon-root,
+    .sidebar ::deep .mud-nav-link .mud-icon-root,
+    .sidebar ::deep .nav-link .mud-icon-root {
+        color: currentColor;
+    }
+
+    /* Hover state */
+    .sidebar ::deep a:hover,
+    .sidebar ::deep .mud-nav-link:hover,
+    .sidebar ::deep .nav-link:hover {
+        color: var(--mud-palette-primary);
+        background-color: rgba(var(--mud-palette-primary-rgb), 0.08);
+        border-radius: 10px;
+    }
+
+    /* Active state (covers both MudNavLink .active and template nav-link.active) */
+    .sidebar ::deep a.active,
+    .sidebar ::deep .mud-nav-link.active,
+    .sidebar ::deep .nav-link.active {
+        color: var(--mud-palette-primary);
+        background-color: rgba(var(--mud-palette-primary-rgb), 0.14);
+        border-radius: 10px;
+    }
+
+    /* If your default template draws an underline/border on active link, remove it */
+    .sidebar ::deep .nav-link.active {
+        border: 0;
+    }
+
+/* =========================
+   Top row
+   ========================= */
 .top-row {
     background-color: var(--mud-palette-surface);
     color: var(--mud-palette-text-primary);
@@ -27,13 +82,13 @@ main {
             text-decoration: underline;
         }
 
-
 @media (max-width: 640.98px) {
     .top-row {
         justify-content: space-between;
     }
 
-        .top-row ::deep a, .top-row ::deep .btn-link {
+        .top-row ::deep a,
+        .top-row ::deep .btn-link {
             margin-left: 0;
         }
 }
@@ -62,7 +117,8 @@ main {
             width: 0;
         }
 
-    .top-row, article {
+    .top-row,
+    article {
         padding-left: 2rem !important;
         padding-right: 1.5rem !important;
     }

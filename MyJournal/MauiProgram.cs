@@ -33,6 +33,9 @@ namespace MyJournal
             builder.Services.AddSingleton<AuthService>();
             builder.Services.AddSingleton<OTPService>();
             builder.Services.AddSingleton<EmailService>();
+            builder.Services.AddSingleton<PinUnlockService>();
+
+
 
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();

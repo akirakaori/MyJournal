@@ -11,40 +11,97 @@ public partial class ViewJournal : ComponentBase
     [Inject] private JournalDatabases Db { get; set; } = default!;
     [Inject] private NavigationManager NavigationManager { get; set; } = default!;
 
+    [Inject] private PinUnlockService PinUnlock { get; set; } = default!;
+
+    private bool IsPinVerifying = false;
+
+
+
+    // Results for current page ONLY (from backend)
     private List<JournalEntries> Entries = new();
     private bool IsLoading = true;
 
+    // backend filter inputs
     private string SearchTitle = "";
+    private DateTime? FromDate = null;
+    private DateTime? ToDate = null;
 
-    // delete confirmation
+    // backend total count for current filter
+    private int TotalCount = 0;
+
+    // sorting (backend)
+    private string SortColumn = nameof(JournalEntries.DateKey);
+    private bool SortAscending = false;
+
+    // paging (backend)
+    private int PageSize = 5;
+    private int CurrentPage = 1;
+
+    // delete confirmation (non-PIN)
     private bool ShowDeleteConfirm = false;
     private string PendingDeleteDateKey = "";
     private bool IsDeleting = false;
 
-    // detail view - NEW
+    // detail view
     private bool ShowDetailView = false;
     private JournalEntries? SelectedEntry = null;
 
-    private string SortColumn = nameof(JournalEntries.DateKey);
-    private bool SortAscending = false;
+    // ----------------------------
+    // PIN Prompt (for protected actions)
+    // ----------------------------
+    private bool ShowPinModal = false;
+    private string PinInput = "";
+    private string PinError = "";
+    private string PendingPinDateKey = "";
+    private JournalEntries? PendingPinEntry = null;
 
-    // paging
-    private int PageSize = 5;
-    private int CurrentPage = 1;
-    private bool SortDescending = true;
+    // Force Delete confirm (when forgot PIN)
+    private bool ShowForceDeleteConfirm = false;
+    private bool IsForceDeleting = false;
+
+    private enum PinAction
+    {
+        View,
+        Edit,
+        Delete
+    }
+
+    private PinAction PendingPinAction;
 
     protected override async Task OnInitializedAsync()
     {
         await ReloadAsync();
     }
 
+    // ============================================================
+    // Backend reload (filter + date range + sort + paging)
+    // ============================================================
     private async Task ReloadAsync()
     {
         IsLoading = true;
         try
         {
-            Entries = await Db.GetRecentAsync(2000);
-            CurrentPage = 1;
+            // IMPORTANT:
+            // Db.SearchAsync must return an object like:
+            //   new { List<JournalEntries> Items, int TotalCount }
+            // or a class with Items + TotalCount.
+            var result = await Db.SearchAsync(
+                titleContains: string.IsNullOrWhiteSpace(SearchTitle) ? null : SearchTitle.Trim(),
+                fromDate: FromDate,
+                toDate: ToDate,
+                sortColumn: SortColumn,
+                sortAscending: SortAscending,
+                page: CurrentPage,
+                pageSize: PageSize
+            );
+
+            Entries = result.Items ?? new List<JournalEntries>();
+            TotalCount = result.TotalCount;
+
+            // clamp current page if filters reduced total pages
+            var totalPages = TotalPages;
+            if (CurrentPage > totalPages) CurrentPage = totalPages;
+            if (CurrentPage < 1) CurrentPage = 1;
         }
         finally
         {
@@ -52,61 +109,54 @@ public partial class ViewJournal : ComponentBase
         }
     }
 
-    // ---------- Detail View - NEW ----------
-    private void ViewEntry(JournalEntries entry)
+    // ============================================================
+    // Date helpers (bind to <input type="date">)
+    // ============================================================
+    private string FromDateText => FromDate.HasValue ? FromDate.Value.ToString("yyyy-MM-dd") : "";
+    private string ToDateText => ToDate.HasValue ? ToDate.Value.ToString("yyyy-MM-dd") : "";
+
+    private async Task OnFromDateChanged(ChangeEventArgs e)
     {
-        SelectedEntry = entry;
-        ShowDetailView = true;
+        FromDate = ParseDateInput(e?.Value?.ToString());
+        CurrentPage = 1;
+        await ReloadAsync();
     }
 
-    private void CloseDetailView()
+    private async Task OnToDateChanged(ChangeEventArgs e)
     {
-        ShowDetailView = false;
-        SelectedEntry = null;
+        ToDate = ParseDateInput(e?.Value?.ToString());
+        CurrentPage = 1;
+        await ReloadAsync();
     }
 
-    private void EditFromDetailView()
+    private async Task ClearDates()
     {
-        if (SelectedEntry != null)
+        FromDate = null;
+        ToDate = null;
+        CurrentPage = 1;
+        await ReloadAsync();
+    }
+
+    private static DateTime? ParseDateInput(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return null;
+
+        if (DateTime.TryParseExact(s, "yyyy-MM-dd", CultureInfo.InvariantCulture,
+            DateTimeStyles.None, out var dt))
         {
-            ShowDetailView = false;
-            Edit(SelectedEntry.DateKey);
+            return dt.Date;
         }
+
+        return null;
     }
 
-    // ---------- Filtering + Sorting ----------
-    private IEnumerable<JournalEntries> FilteredSorted()
-    {
-        IEnumerable<JournalEntries> q = Entries;
-
-        if (!string.IsNullOrWhiteSpace(SearchTitle))
-        {
-            q = q.Where(e =>
-                (e.Title ?? "").Contains(SearchTitle, StringComparison.OrdinalIgnoreCase));
-        }
-
-        q = SortColumn switch
-        {
-            nameof(JournalEntries.Title) =>
-                SortAscending
-                    ? q.OrderBy(e => e.Title)
-                    : q.OrderByDescending(e => e.Title),
-
-            _ =>
-                SortAscending
-                    ? q.OrderBy(e => ParseDateKey(e.DateKey))
-                    : q.OrderByDescending(e => ParseDateKey(e.DateKey))
-        };
-
-        return q;
-    }
-
-    private void SortBy(string column)
+    // ============================================================
+    // Sorting (backend)
+    // ============================================================
+    private async Task SortBy(string column)
     {
         if (SortColumn == column)
-        {
             SortAscending = !SortAscending;
-        }
         else
         {
             SortColumn = column;
@@ -114,6 +164,7 @@ public partial class ViewJournal : ComponentBase
         }
 
         CurrentPage = 1;
+        await ReloadAsync();
     }
 
     private MarkupString SortIcon(string column)
@@ -121,42 +172,23 @@ public partial class ViewJournal : ComponentBase
         if (SortColumn != column)
             return new MarkupString("");
 
-        return SortAscending
-            ? new MarkupString(" ▲")
-            : new MarkupString(" ▼");
+        return SortAscending ? new MarkupString(" ▲") : new MarkupString(" ▼");
     }
 
-    private static DateTime ParseDateKey(string? dateKey)
-    {
-        if (!string.IsNullOrWhiteSpace(dateKey) &&
-            DateTime.TryParseExact(dateKey, "yyyy-MM-dd", CultureInfo.InvariantCulture,
-                DateTimeStyles.None, out var dt))
-            return dt.Date;
-
-        return DateTime.MinValue;
-    }
-
-    // ---------- Computed for UI ----------
-    private int FilteredCount => FilteredSorted().Count();
-
+    // ============================================================
+    // Paging (backend)
+    // ============================================================
     private int TotalPages
     {
         get
         {
-            var count = FilteredCount;
-            if (count == 0) return 1;
-            return (int)Math.Ceiling(count / (double)PageSize);
+            if (TotalCount <= 0) return 1;
+            return (int)Math.Ceiling(TotalCount / (double)PageSize);
         }
     }
 
-    private List<JournalEntries> PagedEntries =>
-        FilteredSorted()
-            .Skip((CurrentPage - 1) * PageSize)
-            .Take(PageSize)
-            .ToList();
-
-    private int StartRow => FilteredCount == 0 ? 0 : ((CurrentPage - 1) * PageSize) + 1;
-    private int EndRow => Math.Min(CurrentPage * PageSize, FilteredCount);
+    private int StartRow => TotalCount == 0 ? 0 : ((CurrentPage - 1) * PageSize) + 1;
+    private int EndRow => Math.Min(CurrentPage * PageSize, TotalCount);
 
     private bool IsFirstPage => CurrentPage <= 1;
     private bool IsLastPage => CurrentPage >= TotalPages;
@@ -182,58 +214,320 @@ public partial class ViewJournal : ComponentBase
         }
     }
 
-    // ---------- UI handlers ----------
-    private void OnSearchInput(ChangeEventArgs e)
+    private async Task PrevPage()
     {
-        SearchTitle = e?.Value?.ToString() ?? "";
-        CurrentPage = 1;
+        if (CurrentPage > 1)
+        {
+            CurrentPage--;
+            await ReloadAsync();
+        }
     }
 
-    private void OnPageSizeChanged(ChangeEventArgs e)
+    private async Task NextPage()
+    {
+        if (CurrentPage < TotalPages)
+        {
+            CurrentPage++;
+            await ReloadAsync();
+        }
+    }
+
+    private async Task GoToPage(int page)
+    {
+        if (page < 1) page = 1;
+        if (page > TotalPages) page = TotalPages;
+        if (page == CurrentPage) return;
+
+        CurrentPage = page;
+        await ReloadAsync();
+    }
+
+    private async Task OnPageSizeChanged(ChangeEventArgs e)
     {
         if (int.TryParse(e?.Value?.ToString(), out var size) && size > 0)
         {
             PageSize = size;
             CurrentPage = 1;
+            await ReloadAsync();
         }
     }
 
-    private void ToggleSort()
+    // ============================================================
+    // Search (backend)
+    // ============================================================
+    private async Task OnSearchInput(ChangeEventArgs e)
     {
-        SortDescending = !SortDescending;
+        SearchTitle = e?.Value?.ToString() ?? "";
         CurrentPage = 1;
+        await ReloadAsync();
     }
 
-    private void PrevPage()
+    // ============================================================
+    // Detail view (ONLY for non-pin OR after PIN success)
+    // ============================================================
+    private void ViewEntry(JournalEntries entry)
     {
-        if (CurrentPage > 1) CurrentPage--;
+        SelectedEntry = entry;
+        ShowDetailView = true;
     }
 
-    private void NextPage()
+    private void CloseDetailView()
     {
-        if (CurrentPage < TotalPages) CurrentPage++;
+        ShowDetailView = false;
+        SelectedEntry = null;
     }
 
-    private void GoToPage(int page)
+    private void EditFromDetailView()
     {
-        if (page < 1) page = 1;
-        if (page > TotalPages) page = TotalPages;
-        CurrentPage = page;
+        if (SelectedEntry != null)
+        {
+            ShowDetailView = false;
+            Edit(SelectedEntry.DateKey);
+        }
     }
 
-    // ---------- Edit ----------
+    // ============================================================
+    // Protected action wrappers
+    // ============================================================
+    private void RequestView(JournalEntries entry)
+    {
+        if (entry.HasPin)
+        {
+            OpenPinModal(entry, PinAction.View);
+            return;
+        }
+
+        ViewEntry(entry);
+    }
+
+    private void RequestEdit(string dateKey)
+    {
+        var entry = Entries.FirstOrDefault(x => x.DateKey == dateKey);
+        if (entry != null && entry.HasPin)
+        {
+            OpenPinModal(entry, PinAction.Edit);
+            return;
+        }
+
+        Edit(dateKey);
+    }
+
+    private async Task RequestDelete(string dateKey)
+    {
+        var entry = Entries.FirstOrDefault(x => x.DateKey == dateKey);
+        if (entry != null && entry.HasPin)
+        {
+            OpenPinModal(entry, PinAction.Delete);
+            return;
+        }
+
+        await PromptDelete(dateKey);
+    }
+
+    private void OpenPinModal(JournalEntries entry, PinAction action)
+    {
+        PendingPinEntry = entry;
+        PendingPinDateKey = entry.DateKey;
+        PendingPinAction = action;
+
+        PinInput = "";
+        PinError = "";
+        ShowPinModal = true;
+        ShowForceDeleteConfirm = false;
+    }
+
+    private void CancelPin()
+    {
+        ShowPinModal = false;
+        PinInput = "";
+        PinError = "";
+        PendingPinEntry = null;
+        PendingPinDateKey = "";
+        ShowForceDeleteConfirm = false;
+        IsForceDeleting = false;
+    }
+
+    private async Task OnPinInputChanged(ChangeEventArgs e)
+    {
+        var raw = e?.Value?.ToString() ?? "";
+        PinInput = NormalizePin(raw);
+        PinError = "";
+
+        if (PinInput.Length > 0 && PinInput.Length < 4)
+        {
+            PinError = "PIN must be exactly 4 characters.";
+            return;
+        }
+
+        //  Auto-submit when 4 chars typed
+        if (PinInput.Length == 4 && !IsPinVerifying)
+        {
+            IsPinVerifying = true;
+            try
+            {
+                await ConfirmPin();
+            }
+            finally
+            {
+                IsPinVerifying = false;
+            }
+        }
+    }
+
+
+    private async Task ConfirmPin()
+    {
+        if (PendingPinEntry == null)
+        {
+            CancelPin();
+            return;
+        }
+
+        var entered = NormalizePin(PinInput);
+        if (string.IsNullOrWhiteSpace(entered) || entered.Length != 4)
+        {
+            PinError = "Enter the 4-character PIN.";
+            return;
+        }
+
+        var saved = NormalizePin(PendingPinEntry.Pin ?? "");
+
+        if (!string.Equals(entered, saved, StringComparison.Ordinal))
+        {
+            PinError = "Incorrect PIN.";
+            return;
+        }
+
+        // PIN OK
+        ShowPinModal = false;
+
+        var action = PendingPinAction;
+        var entry = PendingPinEntry;
+        var dateKey = PendingPinDateKey;
+
+        // remember unlock for journalentry page
+        PinUnlock.Unlock(dateKey, TimeSpan.FromMinutes(5));
+
+        // cleanup
+        PendingPinEntry = null;
+        PendingPinDateKey = "";
+        PinInput = "";
+        PinError = "";
+
+        if (action == PinAction.View)
+        {
+            // unlock temporarily
+            PinUnlock.Unlock(dateKey, TimeSpan.FromMinutes(5));
+
+            // load full content from DB and preview
+            await LoadAndPreviewAsync(dateKey);
+        }
+
+        else if (action == PinAction.Edit)
+        {
+            Edit(dateKey);
+        }
+        else if (action == PinAction.Delete)
+        {
+            await PromptDelete(dateKey);
+        }
+    }
+
+    private async Task LoadAndPreviewAsync(string dateKey)
+    {
+        if (!DateTime.TryParseExact(
+            dateKey,
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out var dt))
+            return;
+
+        var full = await Db.GetByDateAsync(dt.Date);
+        if (full == null) return;
+
+        SelectedEntry = full;
+        ShowDetailView = true;
+    }
+
+
+
+    // ============================================================
+    // Force delete (forgot PIN)
+    // ============================================================
+    private void OpenForceDeleteConfirm()
+    {
+        if (PendingPinEntry == null || string.IsNullOrWhiteSpace(PendingPinDateKey))
+            return;
+
+        ShowForceDeleteConfirm = true;
+    }
+
+    private void CloseForceDeleteConfirm()
+    {
+        ShowForceDeleteConfirm = false;
+        IsForceDeleting = false;
+    }
+
+    private async Task ForceDeleteWithoutPin()
+    {
+        if (string.IsNullOrWhiteSpace(PendingPinDateKey))
+            return;
+
+        IsForceDeleting = true;
+
+        try
+        {
+            if (DateTime.TryParseExact(PendingPinDateKey, "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out var dt))
+            {
+                await Db.DeleteAsync(dt.Date);
+            }
+
+            ShowForceDeleteConfirm = false;
+            ShowPinModal = false;
+
+            PendingPinEntry = null;
+            PendingPinDateKey = "";
+            PinInput = "";
+            PinError = "";
+
+            await ReloadAsync();
+        }
+        finally
+        {
+            IsForceDeleting = false;
+        }
+    }
+
+    private static string NormalizePin(string input)
+    {
+        var s = new string((input ?? "")
+            .Where(c => !char.IsWhiteSpace(c))
+            .ToArray())
+            .ToUpperInvariant();
+
+        s = new string(s.Where(char.IsLetterOrDigit).ToArray());
+
+        if (s.Length > 4) s = s.Substring(0, 4);
+
+        return s;
+    }
+
+    // ============================================================
+    // Edit + Delete flows
+    // ============================================================
     private void Edit(string dateKey)
     {
         var url = $"/journalentry?date={Uri.EscapeDataString(dateKey)}";
         NavigationManager.NavigateTo(url);
     }
 
-    // ---------- Delete flow ----------
-    private async Task PromptDelete(string dateKey)
+    private Task PromptDelete(string dateKey)
     {
         PendingDeleteDateKey = dateKey;
         ShowDeleteConfirm = true;
-        await Task.CompletedTask;
+        return Task.CompletedTask;
     }
 
     private void CancelDelete()
@@ -266,7 +560,9 @@ public partial class ViewJournal : ComponentBase
         }
     }
 
-    // ---------- helpers ----------
+    // ============================================================
+    // Helpers
+    // ============================================================
     private static string Trunc(string? s, int n)
     {
         s ??= "";
@@ -274,25 +570,14 @@ public partial class ViewJournal : ComponentBase
         return s.Length <= n ? s : s.Substring(0, n) + "...";
     }
 
-    /// <summary>
-    /// Strip HTML tags from content for plain text preview - NEW
-    /// </summary>
     private static string StripHtml(string? html)
     {
         if (string.IsNullOrWhiteSpace(html))
             return "";
 
-        // Remove HTML tags
         var text = Regex.Replace(html, @"<[^>]+>", " ");
-        // Remove extra whitespace
         text = Regex.Replace(text, @"\s+", " ");
         return text.Trim();
-    }
-
-    private static string GetBody(string? content)
-    {
-        content ??= "";
-        return content.Trim();
     }
 
     private static string GetTitle(string? title)

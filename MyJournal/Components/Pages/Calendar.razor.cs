@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using JournalMaui.Services;
 using JournalMaui.Models;
+using MudBlazor;
 
 namespace MyJournal.Components.Pages;
 
@@ -10,9 +11,11 @@ public partial class Calendar : ComponentBase, IAsyncDisposable
 {
     [Inject] private IJSRuntime JS { get; set; } = default!;
     [Inject] private NavigationManager Nav { get; set; } = default!;
-
     [Inject] private CalendarDb CalendarDb { get; set; } = default!;
     [Inject] private JournalDatabases JournalDb { get; set; } = default!;
+
+    // ✅ popup dialog service
+    [Inject] private IDialogService DialogService { get; set; } = default!;
 
     [SupplyParameterFromQuery(Name = "refresh")]
     public string? Refresh { get; set; }
@@ -23,7 +26,6 @@ public partial class Calendar : ComponentBase, IAsyncDisposable
     private DotNetObjectReference<Calendar>? _dotNetRef;
     private bool _initialized;
 
-    // Modal (for normal calendar events)
     protected bool ShowEditor { get; set; }
     protected bool IsEditingExisting { get; set; }
     protected string EditorTitle => IsEditingExisting ? "Edit event" : "New event";
@@ -36,6 +38,19 @@ public partial class Calendar : ComponentBase, IAsyncDisposable
     private DateTime _start = DateTime.Now;
     private DateTime? _end = null;
 
+    protected bool ShowFutureDateModal { get; set; }
+
+    private void OpenFutureDateModal()
+    {
+        ShowFutureDateModal = true;
+        StateHasChanged();
+    }
+
+    protected void CloseFutureDateModal()
+    {
+        ShowFutureDateModal = false;
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender || _initialized) return;
@@ -45,23 +60,15 @@ public partial class Calendar : ComponentBase, IAsyncDisposable
         {
             _dotNetRef = DotNetObjectReference.Create(this);
 
-            // 1) load normal calendar events (if you still use CalendarDb)
             var events = await CalendarDb.GetAllAsync();
             var fcEvents = events.Select(ToFullCalendarDto).ToList();
 
-            // 2) load journals and add them as events (TITLE ONLY)
             var journals = await JournalDb.GetRecentAsync(500);
-
             foreach (var j in journals)
             {
-                if (DateTime.TryParseExact(
-                        j.DateKey,
-                        "yyyy-MM-dd",
-                        CultureInfo.InvariantCulture,
-                        DateTimeStyles.None,
-                        out var d))
+                if (DateTime.TryParseExact(j.DateKey, "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                        DateTimeStyles.None, out var d))
                 {
-                    // Show only the journal title (no emoji)
                     var title = string.IsNullOrWhiteSpace(j.Title) ? "Untitled" : j.Title.Trim();
 
                     fcEvents.Add(new
@@ -69,7 +76,10 @@ public partial class Calendar : ComponentBase, IAsyncDisposable
                         id = "J-" + j.DateKey,
                         title = title,
                         start = d.Date.ToString("o"),
-                        allDay = true
+                        allDay = true,
+                        classNames = j.HasPin
+                            ? new[] { "journalDay", "pinned" }
+                            : new[] { "journalDay" }
                     });
                 }
             }
@@ -85,19 +95,35 @@ public partial class Calendar : ComponentBase, IAsyncDisposable
 
     private static bool IsFutureDate(DateTime d) => d.Date > DateTime.Today;
 
-    // Click day -> open journal entry (BLOCK FUTURE)
+    // ✅ single popup function
+    private Task ShowFutureDateAlert()
+    {
+        var options = new DialogOptions
+        {
+            CloseButton = true,
+            CloseOnEscapeKey = true,
+            BackdropClick = true,
+            MaxWidth = MaxWidth.ExtraSmall,
+            FullWidth = true
+        };
+
+        return DialogService.ShowMessageBox(
+            title: "Not allowed",
+            markupMessage: (MarkupString)"You can’t add or open journals for <b>future dates</b>.",
+            yesText: "OK",
+            options: options
+        ) ?? Task.CompletedTask;
+    }
+
     [JSInvokable]
     public Task OnDateClick(string dateStr)
     {
-        Error = null;
-
         if (!DateTime.TryParse(dateStr, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var dt))
             dt = DateTime.Today;
 
         if (IsFutureDate(dt))
         {
-            Error = "Future dates are not allowed.";
-            StateHasChanged();
+            OpenFutureDateModal();
             return Task.CompletedTask;
         }
 
@@ -105,24 +131,24 @@ public partial class Calendar : ComponentBase, IAsyncDisposable
         return Task.CompletedTask;
     }
 
-    // Click event:
-    // - journal event => open journal (BLOCK FUTURE)
-    // - calendar event => open modal
+
     [JSInvokable]
     public async Task OnEventClick(string eventId)
     {
-        Error = null;
-
         // Journal event
         if (eventId.StartsWith("J-", StringComparison.OrdinalIgnoreCase))
         {
-            var dateKey = eventId.Substring(2); // yyyy-MM-dd
+            var dateKey = eventId.Substring(2);
 
-            if (DateTime.TryParseExact(dateKey, "yyyy-MM-dd", CultureInfo.InvariantCulture,
-                DateTimeStyles.None, out var d) && IsFutureDate(d))
+            if (DateTime.TryParseExact(
+                    dateKey,
+                    "yyyy-MM-dd",
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.None,
+                    out var d)
+                && IsFutureDate(d))
             {
-                Error = "Future dates are not allowed.";
-                StateHasChanged();
+                OpenFutureDateModal();
                 return;
             }
 
@@ -130,7 +156,7 @@ public partial class Calendar : ComponentBase, IAsyncDisposable
             return;
         }
 
-        // Normal calendar event (CalendarDb)
+        // Normal calendar event (unchanged)
         var ev = await CalendarDb.GetByIdAsync(eventId);
         if (ev is null) return;
 
@@ -140,12 +166,15 @@ public partial class Calendar : ComponentBase, IAsyncDisposable
         DraftAllDay = ev.AllDay;
 
         _start = DateTime.Parse(ev.StartIso, null, DateTimeStyles.RoundtripKind);
-        _end = string.IsNullOrWhiteSpace(ev.EndIso) ? null : DateTime.Parse(ev.EndIso!, null, DateTimeStyles.RoundtripKind);
+        _end = string.IsNullOrWhiteSpace(ev.EndIso)
+            ? null
+            : DateTime.Parse(ev.EndIso!, null, DateTimeStyles.RoundtripKind);
 
         IsEditingExisting = true;
         ShowEditor = true;
         StateHasChanged();
     }
+
 
     protected void CloseEditor()
     {
@@ -157,20 +186,11 @@ public partial class Calendar : ComponentBase, IAsyncDisposable
     {
         try
         {
-            await CalendarDb.SaveAsync(
-                id: _id,
-                title: DraftTitle,
-                start: _start,
-                end: _end,
-                allDay: DraftAllDay,
-                notes: DraftNotes
-            );
+            await CalendarDb.SaveAsync(_id, DraftTitle, _start, _end, DraftAllDay, DraftNotes);
 
             var saved = await CalendarDb.GetByIdAsync(_id);
             if (saved is not null)
-            {
                 await JS.InvokeVoidAsync("fullCalendarInterop.addOrUpdateEvent", CalendarElementId, ToFullCalendarDto(saved));
-            }
 
             ShowEditor = false;
         }
@@ -194,17 +214,14 @@ public partial class Calendar : ComponentBase, IAsyncDisposable
         }
     }
 
-    private static object ToFullCalendarDto(CalendarEvents ev)
+    private static object ToFullCalendarDto(CalendarEvents ev) => new
     {
-        return new
-        {
-            id = ev.Id,
-            title = ev.Title,
-            start = ev.StartIso,
-            end = ev.EndIso,
-            allDay = ev.AllDay
-        };
-    }
+        id = ev.Id,
+        title = ev.Title,
+        start = ev.StartIso,
+        end = ev.EndIso,
+        allDay = ev.AllDay
+    };
 
     public ValueTask DisposeAsync()
     {
