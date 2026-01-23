@@ -1,6 +1,7 @@
 ﻿@page "/viewjournals"
 @using JournalMaui.Models
 @using System.Globalization
+@using MyJournal.Components.Dialogs
 
 <div class="page">
 
@@ -9,6 +10,9 @@
             <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                 <h2 class="cardTitle">Saved Journals</h2>
                 <span class="pill">@TotalCount</span>
+                <button class="btn small" type="button" @onclick="OpenExportDialog" title="Export journals to PDF">
+                    📄 Export PDF
+                </button>
             </div>
 
             <div class="controls">
@@ -167,7 +171,23 @@
                 </div>
             </div>
         }
+
+        @* Export Status *@
+        @if (!string.IsNullOrWhiteSpace(ExportStatus))
+        {
+            <div class="export-status @(ExportSuccess ? "success" : "error")">
+                @ExportStatus
+            </div>
+        }
     </section>
+
+    @* Export PDF Dialog *@
+    <ExportPdfDialog IsVisible="@ShowExportDialog"
+                     InitialFrom="@FromDate"
+                     InitialTo="@ToDate"
+                     OnClose="CloseExportDialog"
+                     OnExported="HandleExported"
+                     OnError="HandleExportError" />
 
     @* Delete confirm (non-PIN entries) *@
     @if (ShowDeleteConfirm)
@@ -750,6 +770,27 @@
 
         .linkDanger:hover {
             color: rgba(var(--danger-rgb), 1);
+        }
+
+    /* Export Status */
+    .export-status {
+        padding: 12px 16px;
+        margin: 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+        .export-status.success {
+            background-color: rgba(34, 197, 94, 0.15);
+            border: 1px solid rgba(34, 197, 94, 0.4);
+            color: #16a34a;
+        }
+
+        .export-status.error {
+            background-color: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: #dc2626;
         }
 </style>
 

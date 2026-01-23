@@ -1,0 +1,295 @@
+@using MyJournal.Services
+@inject PdfExportService PdfExportService
+
+@if (IsVisible)
+{
+    <div class="modal-overlay" @onclick="Cancel">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Export Journal to PDF</h3>
+                <button class="close-btn" @onclick="Cancel">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                @if (IsExporting)
+                {
+                    <div class="exporting-indicator">
+                        <div class="spinner"></div>
+                        <p>Exporting PDF...</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="form-group">
+                        <label for="startDate">Start Date</label>
+                        <input type="date" 
+                               id="startDate" 
+                               class="form-control" 
+                               @bind="StartDate" 
+                               max="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="endDate">End Date</label>
+                        <input type="date" 
+                               id="endDate" 
+                               class="form-control" 
+                               @bind="EndDate" 
+                               max="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(Message))
+                    {
+                        <div class="alert @(IsError ? "alert-error" : "alert-success")">
+                            @Message
+                        </div>
+                    }
+                }
+            </div>
+
+            <div class="modal-footer">
+                @if (!IsExporting)
+                {
+                    <button class="btn btn-secondary" @onclick="Cancel">Cancel</button>
+                    <button class="btn btn-primary" @onclick="ExportPdf">Export PDF</button>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public DateTime? InitialFrom { get; set; }
+    [Parameter] public DateTime? InitialTo { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<string> OnExported { get; set; }
+    [Parameter] public EventCallback<string> OnError { get; set; }
+
+    private DateTime StartDate { get; set; } = DateTime.Today.AddDays(-7);
+    private DateTime EndDate { get; set; } = DateTime.Today;
+    private bool IsExporting { get; set; } = false;
+    private string Message { get; set; } = string.Empty;
+    private bool IsError { get; set; } = false;
+
+    protected override void OnParametersSet()
+    {
+        if (IsVisible)
+        {
+            // Reset state when dialog opens
+            StartDate = InitialFrom ?? DateTime.Today.AddDays(-7);
+            EndDate = InitialTo ?? DateTime.Today;
+            Message = string.Empty;
+            IsError = false;
+            IsExporting = false;
+        }
+    }
+
+    private async Task ExportPdf()
+    {
+        Message = string.Empty;
+        IsError = false;
+
+        // Validate dates
+        if (StartDate > EndDate)
+        {
+            Message = "Start date must be before or equal to end date.";
+            IsError = true;
+            return;
+        }
+
+        if (StartDate > DateTime.Today || EndDate > DateTime.Today)
+        {
+            Message = "Cannot export future dates.";
+            IsError = true;
+            return;
+        }
+
+        IsExporting = true;
+        StateHasChanged();
+
+        try
+        {
+            string filePath = await PdfExportService.ExportEntriesToPdfAsync(StartDate, EndDate);
+            
+            Message = $"PDF exported successfully to: {filePath}";
+            IsError = false;
+            IsExporting = false;
+            StateHasChanged();
+
+            // Wait a moment to show success message
+            await Task.Delay(1500);
+
+            // Invoke callbacks
+            await OnExported.InvokeAsync(filePath);
+            await OnClose.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Message = ex.Message;
+            IsError = true;
+            IsExporting = false;
+            StateHasChanged();
+
+            // Invoke error callback
+            await OnError.InvokeAsync(ex.Message);
+        }
+    }
+
+    private async Task Cancel()
+    {
+        if (!IsExporting)
+        {
+            await OnClose.InvokeAsync();
+        }
+    }
+}
+
+<style>
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 8px;
+        width: 90%;
+        max-width: 500px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .modal-header h3 {
+        margin: 0;
+        font-size: 1.25rem;
+    }
+
+    .close-btn {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #6c757d;
+    }
+
+    .close-btn:hover {
+        color: #000;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 1rem;
+    }
+
+    .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        padding: 1rem 1.5rem;
+        border-top: 1px solid #dee2e6;
+    }
+
+    .btn {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 1rem;
+    }
+
+    .btn-primary {
+        background-color: #007bff;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background-color: #0056b3;
+    }
+
+    .btn-secondary {
+        background-color: #6c757d;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background-color: #545b62;
+    }
+
+    .alert {
+        padding: 0.75rem 1rem;
+        margin-top: 1rem;
+        border-radius: 4px;
+    }
+
+    .alert-success {
+        background-color: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+    }
+
+    .alert-error {
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+    }
+
+    .exporting-indicator {
+        text-align: center;
+        padding: 2rem;
+    }
+
+    .spinner {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #007bff;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 1rem;
+    }
+
+    @@keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .exporting-indicator p {
+        color: #6c757d;
+        font-size: 1rem;
+    }
+</style>

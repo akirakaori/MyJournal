@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Components;
 using JournalMaui.Services;
 using JournalMaui.Models;
+using MyJournal.Services;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
@@ -10,8 +11,8 @@ public partial class ViewJournal : ComponentBase
 {
     [Inject] private JournalDatabases Db { get; set; } = default!;
     [Inject] private NavigationManager NavigationManager { get; set; } = default!;
-
     [Inject] private PinUnlockService PinUnlock { get; set; } = default!;
+    [Inject] private PdfExportService PdfExportService { get; set; } = default!;
 
     private bool IsPinVerifying = false;
 
@@ -45,6 +46,50 @@ public partial class ViewJournal : ComponentBase
     // detail view
     private bool ShowDetailView = false;
     private JournalEntries? SelectedEntry = null;
+
+    // ----------------------------
+    // Export PDF Dialog
+    // ----------------------------
+    private bool ShowExportDialog = false;
+    private string ExportStatus = "";
+    private bool ExportSuccess = false;
+
+    private void OpenExportDialog()
+    {
+        ShowExportDialog = true;
+        ExportStatus = "";
+        ExportSuccess = false;
+    }
+
+    private void CloseExportDialog()
+    {
+        ShowExportDialog = false;
+    }
+
+    private Task HandleExported(string path)
+    {
+        ExportStatus = $"PDF exported successfully! Saved to: {path}";
+        ExportSuccess = true;
+        StateHasChanged();
+
+        // Auto-clear the success message after 10 seconds
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(10000);
+            ExportStatus = "";
+            await InvokeAsync(StateHasChanged);
+        });
+
+        return Task.CompletedTask;
+    }
+
+    private Task HandleExportError(string message)
+    {
+        ExportStatus = $"Export failed: {message}";
+        ExportSuccess = false;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
 
     // ----------------------------
     // PIN Prompt (for protected actions)

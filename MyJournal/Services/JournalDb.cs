@@ -177,4 +177,19 @@ public class JournalDatabases
             Items = items
         };
     }
+
+    /// <summary>
+    /// Gets all journal entries between startDate and endDate (inclusive).
+    /// Used for PDF export.
+    /// </summary>
+    public async Task<List<JournalEntries>> GetEntriesByDateRangeAsync(DateTime startDate, DateTime endDate)
+    {
+        var startKey = Key(startDate);
+        var endKey = Key(endDate);
+
+        var sql = "SELECT * FROM JournalEntries WHERE DateKey >= ? AND DateKey <= ? ORDER BY DateKey ASC";
+        var entries = await _db.QueryAsync<JournalEntries>(sql, startKey, endKey);
+
+        return entries;
+    }
 }
