@@ -1,0 +1,195 @@
+@page "/streaks"
+@using MudBlazor
+@using JournalMaui.Models
+@using JournalMaui.Services
+@inject StreakService StreakService
+@inject MyJournal.Services.AppState AppState
+@inject NavigationManager NavManager
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-4">
+
+    <MudText Typo="Typo.h4" Class="mb-4">📊 Streak Tracking</MudText>
+
+    @if (!AppState.IsLoggedIn)
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Filled">
+            <div class="d-flex align-center justify-space-between flex-wrap gap-2" style="width:100%">
+                <div>
+                    <b>Locked.</b> Please log in to view your streak statistics.
+                </div>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => NavManager.NavigateTo("/login"))">
+                    Login
+                </MudButton>
+            </div>
+        </MudAlert>
+    }
+    else
+    {
+        @if (isLoading)
+        {
+            <div class="d-flex justify-center align-center" style="min-height: 200px;">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            </div>
+        }
+        else if (streakData == null)
+        {
+            <MudAlert Severity="Severity.Error">
+                Failed to load streak data. Please try again.
+            </MudAlert>
+        }
+        else
+        {
+            <MudGrid Spacing="3">
+
+                <!-- Current Streak Card -->
+                <MudItem xs="12" md="4">
+                    <MudCard Elevation="3" Class="h-100">
+                        <MudCardContent>
+                            <div class="d-flex flex-column align-center text-center">
+                                <MudIcon Icon="@Icons.Material.Filled.LocalFireDepartment" 
+                                         Color="Color.Error" 
+                                         Size="Size.Large" 
+                                         Class="mb-3" />
+                                <MudText Typo="Typo.h3" Color="Color.Primary" Class="mb-2">
+                                    @streakData.CurrentStreak
+                                </MudText>
+                                <MudText Typo="Typo.h6" Class="mb-1">
+                                    Current Streak
+                                </MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                    @GetStreakMessage(streakData.CurrentStreak)
+                                </MudText>
+                            </div>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+
+                <!-- Longest Streak Card -->
+                <MudItem xs="12" md="4">
+                    <MudCard Elevation="3" Class="h-100">
+                        <MudCardContent>
+                            <div class="d-flex flex-column align-center text-center">
+                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" 
+                                         Color="Color.Warning" 
+                                         Size="Size.Large" 
+                                         Class="mb-3" />
+                                <MudText Typo="Typo.h3" Color="Color.Primary" Class="mb-2">
+                                    @streakData.LongestStreak
+                                </MudText>
+                                <MudText Typo="Typo.h6" Class="mb-1">
+                                    Longest Streak
+                                </MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                    Your personal best record
+                                </MudText>
+                            </div>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+
+                <!-- Missed Days Card -->
+                <MudItem xs="12" md="4">
+                    <MudCard Elevation="3" Class="h-100">
+                        <MudCardContent>
+                            <div class="d-flex flex-column align-center text-center">
+                                <MudIcon Icon="@Icons.Material.Filled.EventBusy" 
+                                         Color="Color.Info" 
+                                         Size="Size.Large" 
+                                         Class="mb-3" />
+                                <MudText Typo="Typo.h3" Color="Color.Primary" Class="mb-2">
+                                    @streakData.MissedDays
+                                </MudText>
+                                <MudText Typo="Typo.h6" Class="mb-1">
+                                    Missed Days
+                                </MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                    Days skipped between entries
+                                </MudText>
+                            </div>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+
+            </MudGrid>
+
+            <!-- Action Buttons -->
+            <MudPaper Elevation="0" Class="mt-4 pa-4 text-center">
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Success" 
+                           StartIcon="@Icons.Material.Filled.Create"
+                           OnClick="@(() => NavManager.NavigateTo("/journalentry"))"
+                           Class="mx-2">
+                    Write Today's Entry
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" 
+                           Color="Color.Primary" 
+                           StartIcon="@Icons.Material.Filled.CalendarMonth"
+                           OnClick="@(() => NavManager.NavigateTo("/calendar"))"
+                           Class="mx-2">
+                    View Calendar
+                </MudButton>
+            </MudPaper>
+
+            @if (streakData.CurrentStreak == 0 && streakData.LongestStreak > 0)
+            {
+                <MudAlert Severity="Severity.Info" Class="mt-4">
+                    <MudText>
+                        Your streak has ended, but you had a <b>@streakData.LongestStreak-day streak</b> before! 
+                        Start writing today to begin a new streak! 🚀
+                    </MudText>
+                </MudAlert>
+            }
+        }
+    }
+
+</MudContainer>
+
+@code {
+    private StreakResult? streakData;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AppState.IsLoggedIn)
+        {
+            await LoadStreakDataAsync();
+        }
+        else
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadStreakDataAsync()
+    {
+        isLoading = true;
+        try
+        {
+            streakData = await StreakService.CalculateStreaksAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading streak data: {ex.Message}");
+            streakData = null;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string GetStreakMessage(int streak)
+    {
+        return streak switch
+        {
+            0 => "Start your streak today!",
+            1 => "Great start! Keep going!",
+            < 7 => "Building momentum!",
+            < 14 => "One week down! 🎉",
+            < 30 => "Two weeks strong! 💪",
+            < 60 => "A month of journaling! ⭐",
+            < 100 => "Incredible consistency! 🔥",
+            _ => "Legendary streak! 👑"
+        };
+    }
+}
