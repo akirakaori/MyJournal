@@ -156,6 +156,28 @@ public class PdfExportService
                 column.Item().PaddingVertical(3);
             }
 
+            // Mood
+            if (!string.IsNullOrWhiteSpace(entry.PrimaryMood))
+            {
+                column.Item().Row(row =>
+                {
+                    row.AutoItem().Text("Mood: ").FontSize(9).FontColor(QuestPDF.Helpers.Colors.Grey.Darken1);
+                    row.AutoItem().Text(entry.PrimaryMood).FontSize(9).SemiBold().FontColor(QuestPDF.Helpers.Colors.Blue.Medium);
+                    
+                    if (!string.IsNullOrWhiteSpace(entry.SecondaryMoodsCsv))
+                    {
+                        var secondaryMoods = entry.SecondaryMoodsCsv.Split(',', StringSplitOptions.RemoveEmptyEntries);
+                        if (secondaryMoods.Length > 0)
+                        {
+                            row.AutoItem().Text(" + ").FontSize(9).FontColor(QuestPDF.Helpers.Colors.Grey.Medium);
+                            row.AutoItem().Text(string.Join(", ", secondaryMoods.Select(m => m.Trim())))
+                                .FontSize(9).FontColor(QuestPDF.Helpers.Colors.Grey.Darken1);
+                        }
+                    }
+                });
+                column.Item().PaddingVertical(3);
+            }
+
             // Content
             if (entry.HasPin)
             {

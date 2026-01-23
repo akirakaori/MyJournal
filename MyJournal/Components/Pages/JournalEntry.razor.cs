@@ -42,10 +42,22 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
     // ---------------------------
     // Mood Tracking (Feature 3)
     // ---------------------------
-    private static readonly List<string> AllMoods = new()
+    private record MoodConfig(string Name, string Emoji);
+    
+    private static readonly List<MoodConfig> _moodConfigs = new()
     {
-        "Happy", "Calm", "Neutral", "Sad", "Angry", "Anxious", "Stressed", "Excited", "Tired"
+        new("Happy", "😊"),
+        new("Calm", "😌"),
+        new("Neutral", "😐"),
+        new("Sad", "😢"),
+        new("Angry", "😠"),
+        new("Anxious", "😰"),
+        new("Excited", "🤩"),
+        new("Tired", "😴"),
+        new("Stressed", "😣")
     };
+
+    private List<MoodConfig> GetMoodConfig() => _moodConfigs;
 
     private string _primaryMood = "";
     private string PrimaryMood
@@ -61,6 +73,16 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
                 SecondaryMoods.Remove(value);
             }
         }
+    }
+
+    private void SelectPrimaryMood(string mood)
+    {
+        // Clear secondary moods when changing primary
+        if (_primaryMood != mood)
+        {
+            SecondaryMoods.Clear();
+        }
+        PrimaryMood = mood;
     }
 
     private HashSet<string> SecondaryMoods = new();
