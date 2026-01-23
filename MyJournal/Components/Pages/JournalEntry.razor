@@ -197,6 +197,42 @@
                         <div class="pinError">@PinError</div>
                     }
                 </div>
+
+                <div class="modalField">
+                    <label class="modalLabel">Primary Mood <span style="color: var(--danger);">*</span></label>
+                    <select class="modalInput moodSelect" @bind="PrimaryMood">
+                        <option value="">-- Select one --</option>
+                        @foreach (var mood in AllMoods)
+                        {
+                            <option value="@mood">@mood</option>
+                        }
+                    </select>
+                    <div class="pinHelp">Choose your main mood for this day.</div>
+                </div>
+
+                <div class="modalField">
+                    <label class="modalLabel">Secondary Moods (up to 2)</label>
+                    <div class="moodChipsWrap">
+                        @foreach (var mood in AllMoods)
+                        {
+                            var isSelected = SecondaryMoods.Contains(mood);
+                            var isPrimary = mood.Equals(PrimaryMood, StringComparison.OrdinalIgnoreCase);
+                            var isDisabled = isPrimary || (!isSelected && SecondaryMoods.Count >= 2);
+
+                            <button type="button"
+                                    class="moodChip @(isSelected ? "selected" : "") @(isDisabled ? "disabled" : "")"
+                                    @onclick="() => OnSecondaryMoodToggle(mood)"
+                                    disabled="@isDisabled">
+                                @mood
+                            </button>
+                        }
+                    </div>
+                    <div class="pinHelp">Optional: select up to 2 additional moods (cannot duplicate primary).</div>
+                    @if (!string.IsNullOrWhiteSpace(MoodError))
+                    {
+                        <div class="pinError">@MoodError</div>
+                    }
+                </div>
             </div>
 
             <div class="modalFooter">
@@ -666,5 +702,46 @@
             opacity: .55;
             cursor: not-allowed;
         }
-</style>
 
+    /* Mood Selection Styles */
+    .moodSelect {
+        width: 100%;
+        cursor: pointer;
+    }
+
+    .moodChipsWrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
+    }
+
+    .moodChip {
+        padding: 8px 16px;
+        border-radius: 20px;
+        border: 2px solid var(--border);
+        background: rgba(var(--mud-palette-surface-rgb), 0.75);
+        color: var(--text);
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+
+        .moodChip:hover:not(.disabled) {
+            background: rgba(var(--primary-rgb), 0.1);
+            border-color: rgba(var(--primary-rgb), 0.4);
+        }
+
+        .moodChip.selected {
+            background: rgba(var(--primary-rgb), 0.2);
+            border-color: var(--primary);
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        .moodChip.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+</style>

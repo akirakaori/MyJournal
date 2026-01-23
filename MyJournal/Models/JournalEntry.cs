@@ -18,4 +18,8 @@ public class JournalEntries
 
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+
+    // Mood tracking (Feature 3)
+    public string PrimaryMood { get; set; } = "";
+    public string SecondaryMoodsCsv { get; set; } = "";
 }

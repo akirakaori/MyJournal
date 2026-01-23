@@ -40,6 +40,59 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
     private string UpdatedAtText => UpdatedAt?.ToString("yyyy-MM-dd HH:mm") ?? "-";
 
     // ---------------------------
+    // Mood Tracking (Feature 3)
+    // ---------------------------
+    private static readonly List<string> AllMoods = new()
+    {
+        "Happy", "Calm", "Neutral", "Sad", "Angry", "Anxious", "Stressed", "Excited", "Tired"
+    };
+
+    private string _primaryMood = "";
+    private string PrimaryMood
+    {
+        get => _primaryMood;
+        set
+        {
+            _primaryMood = value;
+            MoodError = "";
+            // Remove from secondary if it was selected
+            if (SecondaryMoods.Contains(value))
+            {
+                SecondaryMoods.Remove(value);
+            }
+        }
+    }
+
+    private HashSet<string> SecondaryMoods = new();
+    private string MoodError = "";
+
+    private void OnSecondaryMoodToggle(string mood)
+    {
+        MoodError = "";
+
+        if (SecondaryMoods.Contains(mood))
+        {
+            SecondaryMoods.Remove(mood);
+        }
+        else
+        {
+            if (SecondaryMoods.Count >= 2)
+            {
+                MoodError = "You can select at most 2 secondary moods.";
+                return;
+            }
+
+            if (mood.Equals(PrimaryMood, StringComparison.OrdinalIgnoreCase))
+            {
+                MoodError = "Secondary mood cannot be the same as primary mood.";
+                return;
+            }
+
+            SecondaryMoods.Add(mood);
+        }
+    }
+
+    // ---------------------------
     // Save PIN (optional)
     // ---------------------------
     private string PinInput = "";
@@ -133,6 +186,11 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
                 PinInput = "";
                 PinError = "";
 
+                // Reset moods
+                _primaryMood = "";
+                SecondaryMoods.Clear();
+                MoodError = "";
+
                 Status = "No entry for this date. Start writing!";
 
                 if (_dotNetRef is not null)
@@ -170,6 +228,19 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
 
                     Content = _current.Content ?? "";
                     CurrentTitle = _current.Title ?? "";
+
+                    // Load moods
+                    _primaryMood = _current.PrimaryMood ?? "";
+                    SecondaryMoods.Clear();
+                    if (!string.IsNullOrWhiteSpace(_current.SecondaryMoodsCsv))
+                    {
+                        var moods = _current.SecondaryMoodsCsv.Split(',', StringSplitOptions.RemoveEmptyEntries);
+                        foreach (var mood in moods.Take(2))
+                        {
+                            SecondaryMoods.Add(mood.Trim());
+                        }
+                    }
+                    MoodError = "";
 
                     if (_dotNetRef is not null)
                         await JS.InvokeVoidAsync("setQuillHtml", Content);
@@ -344,6 +415,13 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
             return;
         }
 
+        // Validate mood selection
+        if (string.IsNullOrWhiteSpace(PrimaryMood))
+        {
+            Status = "Please select a primary mood.";
+            return;
+        }
+
         PinError = "";
         var pin = NormalizePin(PinInput);
 
@@ -369,7 +447,9 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
             var hasPin = !string.IsNullOrEmpty(pin);
             var pinToSave = hasPin ? pin : null;
 
-            await Db.SaveAsync(SelectedDate, title, Content, hasPin, pinToSave);
+            var secondaryMoodsList = SecondaryMoods.ToList();
+
+            await Db.SaveAsync(SelectedDate, title, Content, hasPin, pinToSave, PrimaryMood, secondaryMoodsList);
 
             _current = await Db.GetByDateAsync(SelectedDate);
 

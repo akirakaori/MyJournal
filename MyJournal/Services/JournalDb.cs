@@ -16,6 +16,36 @@ public class JournalDatabases
     public async Task InitAsync()
     {
         await _db.CreateTableAsync<JournalEntries>();
+        await MigrateAddMoodColumnsAsync();
+    }
+
+    private async Task MigrateAddMoodColumnsAsync()
+    {
+        try
+        {
+            var tableInfo = await _db.QueryAsync<TableInfoResult>("PRAGMA table_info(JournalEntries)");
+            var columnNames = tableInfo.Select(x => x.name).ToList();
+
+            if (!columnNames.Contains("PrimaryMood"))
+            {
+                await _db.ExecuteAsync("ALTER TABLE JournalEntries ADD COLUMN PrimaryMood TEXT NOT NULL DEFAULT ''");
+            }
+
+            if (!columnNames.Contains("SecondaryMoodsCsv"))
+            {
+                await _db.ExecuteAsync("ALTER TABLE JournalEntries ADD COLUMN SecondaryMoodsCsv TEXT NOT NULL DEFAULT ''");
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log or handle migration error
+            System.Diagnostics.Debug.WriteLine($"Migration error: {ex.Message}");
+        }
+    }
+
+    private class TableInfoResult
+    {
+        public string name { get; set; } = "";
     }
 
     private static string Key(DateTime date) => date.Date.ToString("yyyy-MM-dd");
@@ -28,7 +58,7 @@ public class JournalDatabases
                   .FirstOrDefaultAsync();
     }
 
-    public async Task SaveAsync(DateTime date, string title, string content, bool hasPin, string? pin)
+    public async Task SaveAsync(DateTime date, string title, string content, bool hasPin, string? pin, string primaryMood, List<string> secondaryMoods)
     {
         var k = Key(date);
         var now = DateTime.Now;
@@ -36,6 +66,21 @@ public class JournalDatabases
         title = (title ?? "").Trim();
         if (string.IsNullOrWhiteSpace(title))
             throw new ArgumentException("Title is required.", nameof(title));
+
+        // Validate primary mood
+        primaryMood = (primaryMood ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(primaryMood))
+            throw new ArgumentException("Primary mood is required.", nameof(primaryMood));
+
+        // Validate and sanitize secondary moods
+        secondaryMoods = secondaryMoods ?? new List<string>();
+        secondaryMoods = secondaryMoods
+            .Where(m => !string.IsNullOrWhiteSpace(m) && !m.Equals(primaryMood, StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(2)
+            .ToList();
+
+        var secondaryMoodsCsv = string.Join(",", secondaryMoods);
 
         var existing = await _db.Table<JournalEntries>()
                                 .Where(x => x.DateKey == k)
@@ -50,6 +95,8 @@ public class JournalDatabases
                 Content = content ?? "",
                 HasPin = hasPin,
                 Pin = hasPin ? pin : null,
+                PrimaryMood = primaryMood,
+                SecondaryMoodsCsv = secondaryMoodsCsv,
                 CreatedAt = now,
                 UpdatedAt = now
             };
@@ -62,6 +109,8 @@ public class JournalDatabases
             existing.Content = content ?? "";
             existing.HasPin = hasPin;
             existing.Pin = hasPin ? pin : null;
+            existing.PrimaryMood = primaryMood;
+            existing.SecondaryMoodsCsv = secondaryMoodsCsv;
             existing.UpdatedAt = now;
 
             await _db.UpdateAsync(existing);

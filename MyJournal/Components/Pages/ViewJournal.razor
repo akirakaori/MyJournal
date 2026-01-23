@@ -89,6 +89,7 @@
                                 Title @SortIcon(nameof(JournalEntries.Title))
                             </th>
 
+                            <th>Mood</th>
                             <th>PIN Protected</th>
                             <th>Content Preview</th>
                             <th style="text-align:right;">Actions</th>
@@ -103,6 +104,25 @@
 
                                 <td class="td-title">
                                     @GetTitle(e.Title)
+                                </td>
+
+                                <td class="td-mood">
+                                    @if (!string.IsNullOrWhiteSpace(e.PrimaryMood))
+                                    {
+                                        <span class="mood-badge primary">@e.PrimaryMood</span>
+                                        @if (!string.IsNullOrWhiteSpace(e.SecondaryMoodsCsv))
+                                        {
+                                            var secondary = e.SecondaryMoodsCsv.Split(',', StringSplitOptions.RemoveEmptyEntries);
+                                            foreach (var mood in secondary.Take(2))
+                                            {
+                                                <span class="mood-badge secondary">@mood.Trim()</span>
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="mood-none">-</span>
+                                    }
                                 </td>
 
                                 <td class="td-pin">
@@ -495,6 +515,39 @@
         color: rgba(var(--muted-rgb), 0.95);
         font-weight: 800;
         font-size: 12px;
+    }
+
+    /* Mood badges */
+    .td-mood {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    .mood-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+        .mood-badge.primary {
+            background: rgba(var(--primary-rgb), 0.15);
+            border: 1px solid rgba(var(--primary-rgb), 0.35);
+            color: var(--primary);
+        }
+
+        .mood-badge.secondary {
+            background: rgba(var(--text-rgb), 0.08);
+            border: 1px solid rgba(var(--text-rgb), 0.15);
+            color: var(--text);
+        }
+
+    .mood-none {
+        color: rgba(var(--muted-rgb), 0.6);
+        font-style: italic;
     }
 
     /* Actions */
