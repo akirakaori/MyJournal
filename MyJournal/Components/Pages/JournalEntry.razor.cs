@@ -42,22 +42,55 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
     // ---------------------------
     // Mood Tracking (Feature 3)
     // ---------------------------
-    private record MoodConfig(string Name, string Emoji);
+    private record MoodConfig(string Name, string Emoji, string Category);
     
     private static readonly List<MoodConfig> _moodConfigs = new()
     {
-        new("Happy", "😊"),
-        new("Calm", "😌"),
-        new("Neutral", "😐"),
-        new("Sad", "😢"),
-        new("Angry", "😠"),
-        new("Anxious", "😰"),
-        new("Excited", "🤩"),
-        new("Tired", "😴"),
-        new("Stressed", "😣")
+        // POSITIVE
+        new("Happy", "😊", "Positive"),
+        new("Excited", "🤩", "Positive"),
+        new("Relaxed", "😌", "Positive"),
+        new("Grateful", "🙏", "Positive"),
+        new("Confident", "💪", "Positive"),
+        
+        // NEUTRAL
+        new("Calm", "😐", "Neutral"),
+        new("Thoughtful", "🤔", "Neutral"),
+        new("Curious", "🧐", "Neutral"),
+        new("Nostalgic", "🥺", "Neutral"),
+        new("Bored", "😑", "Neutral"),
+        
+        // NEGATIVE
+        new("Sad", "😢", "Negative"),
+        new("Angry", "😠", "Negative"),
+        new("Stressed", "😣", "Negative"),
+        new("Lonely", "😔", "Negative"),
+        new("Anxious", "😰", "Negative")
     };
 
     private List<MoodConfig> GetMoodConfig() => _moodConfigs;
+    
+    // Category filtering for UI
+    private string SelectedPrimaryCategory = "Positive";
+    private string SelectedSecondaryCategory = "Positive";
+    
+    private List<MoodConfig> GetMoodsByCategory(string category)
+    {
+        return _moodConfigs.Where(m => m.Category == category).ToList();
+    }
+    
+    private void SelectPrimaryCategory(string category)
+    {
+        SelectedPrimaryCategory = category;
+        // Clear primary mood and secondary moods when category changes for clean UX
+        PrimaryMood = "";
+        SecondaryMoods.Clear();
+    }
+    
+    private void SelectSecondaryCategory(string category)
+    {
+        SelectedSecondaryCategory = category;
+    }
 
     private string _primaryMood = "";
     private string PrimaryMood
@@ -77,12 +110,14 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
 
     private void SelectPrimaryMood(string mood)
     {
-        // Clear secondary moods when changing primary
+        // Selecting a new primary mood automatically replaces the previous one
+        // and clears secondary moods to prevent conflicts
         if (_primaryMood != mood)
         {
             SecondaryMoods.Clear();
         }
         PrimaryMood = mood;
+        MoodError = "";
     }
 
     private HashSet<string> SecondaryMoods = new();
@@ -92,21 +127,23 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
     {
         MoodError = "";
 
+        // Cannot select primary mood as secondary
+        if (mood.Equals(PrimaryMood, StringComparison.OrdinalIgnoreCase))
+        {
+            MoodError = "Secondary mood cannot be the same as primary mood.";
+            return;
+        }
+
         if (SecondaryMoods.Contains(mood))
         {
             SecondaryMoods.Remove(mood);
         }
         else
         {
+            // Enforce maximum of 2 secondary moods
             if (SecondaryMoods.Count >= 2)
             {
                 MoodError = "You can select at most 2 secondary moods.";
-                return;
-            }
-
-            if (mood.Equals(PrimaryMood, StringComparison.OrdinalIgnoreCase))
-            {
-                MoodError = "Secondary mood cannot be the same as primary mood.";
                 return;
             }
 

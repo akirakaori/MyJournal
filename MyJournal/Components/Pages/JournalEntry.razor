@@ -45,18 +45,21 @@
                 </div>
 
                 <div class="btnGroup">
-                    <button class="btn btnPrimary"
-                            @onclick="StartSave"
-                            disabled="@(IsBusy || IsLocked)"
-                            title="Save entry (will ask for title)">
+
+                    <button class="btn" @onclick="GenerateRandomEntry" disabled="@(IsBusy || IsLocked)"
+                        title="generate random paragraphs">
+                        <span class="btnIcon">🎲</span>
+                        <span>Bogus</span>
+                    </button>
+
+                    <button class="btn btnPrimary" @onclick="StartSave" disabled="@(IsBusy || IsLocked)"
+                        title="Save entry (will ask for title)">
                         <span class="btnIcon">💾</span>
                         <span>Save</span>
                     </button>
 
-                    <button class="btn btnDanger"
-                            @onclick="Delete"
-                            disabled="@(IsBusy || IsLocked)"
-                            title="Delete entry (date+title if title is set)">
+                    <button class="btn btnDanger" @onclick="Delete" disabled="@(IsBusy || IsLocked)"
+                        title="Delete entry (date+title if title is set)">
                         <span class="btnIcon">🗑</span>
                         <span>Delete</span>
                     </button>
@@ -109,14 +112,9 @@
                     <label class="modalLabel">PIN</label>
 
                     <div class="pinRow">
-                        <input class="modalInput pinInput"
-                               type="password"
-                               value="@UnlockPinInput"
-                               @oninput="OnUnlockPinInputChanged"
-                               placeholder="4 letters/numbers"
-                               maxlength="4"
-                               autocomplete="off"
-                               @onkeydown="HandleUnlockKeyDown" />
+                        <input class="modalInput pinInput" type="password" value="@UnlockPinInput"
+                            @oninput="OnUnlockPinInputChanged" placeholder="4 letters/numbers" maxlength="4"
+                            autocomplete="off" @onkeydown="HandleUnlockKeyDown" />
 
                         <button type="button" class="pinBtn" @onclick="ClearUnlockPin" title="Clear">
                             ✕
@@ -161,23 +159,16 @@
             <div class="modalBody">
                 <div class="modalField">
                     <label class="modalLabel">Title</label>
-                    <input class="modalInput"
-                           @bind="TitleInput"
-                           placeholder="e.g., My day, Study notes, Goals..."
-                           @onkeydown="HandleTitleKeyDown" />
+                    <input class="modalInput" @bind="TitleInput" placeholder="e.g., My day, Study notes, Goals..."
+                        @onkeydown="HandleTitleKeyDown" />
                 </div>
 
                 <div class="modalField pinField">
                     <label class="modalLabel">PIN (optional)</label>
 
                     <div class="pinRow">
-                        <input class="modalInput pinInput"
-                               type="@(PinMasked ? "password" : "text")"
-                               value="@PinInput"
-                               @oninput="OnPinInputChanged"
-                               placeholder="4 letters/numbers"
-                               maxlength="4"
-                               autocomplete="off" />
+                        <input class="modalInput pinInput" type="@(PinMasked ? "password" : "text")" value="@PinInput"
+                            @oninput="OnPinInputChanged" placeholder="4 letters/numbers" maxlength="4" autocomplete="off" />
 
                         <button type="button" class="pinBtn" @onclick="TogglePinMask" title="Show/Hide PIN">
                             @((MarkupString)(PinMasked ? EyeSvg : EyeOffSvg))
@@ -202,14 +193,28 @@
                     <label class="modalLabel moodSectionLabel">
                         How are you feeling today? <span style="color: var(--danger);">*</span>
                     </label>
-                    
+
+                    <div class="categoryChips">
+                        <button type="button" class="categoryChip @(SelectedPrimaryCategory == "Positive" ? "active" : "")"
+                            @onclick="@(() => SelectPrimaryCategory("Positive"))">
+                            Positive
+                        </button>
+                        <button type="button" class="categoryChip @(SelectedPrimaryCategory == "Neutral" ? "active" : "")"
+                            @onclick="@(() => SelectPrimaryCategory("Neutral"))">
+                            Neutral
+                        </button>
+                        <button type="button" class="categoryChip @(SelectedPrimaryCategory == "Negative" ? "active" : "")"
+                            @onclick="@(() => SelectPrimaryCategory("Negative"))">
+                            Negative
+                        </button>
+                    </div>
+
                     <div class="primaryMoodGrid">
-                        @foreach (var mood in GetMoodConfig())
+                        @foreach (var mood in GetMoodsByCategory(SelectedPrimaryCategory))
                         {
                             var isSelected = PrimaryMood == mood.Name;
-                            <button type="button"
-                                    class="moodPillPrimary @(isSelected ? "selected" : "")"
-                                    @onclick="() => SelectPrimaryMood(mood.Name)">
+                            <button type="button" class="moodPillPrimary @(isSelected ? "selected" : "")"
+                                @onclick="() => SelectPrimaryMood(mood.Name)">
                                 <span class="moodEmoji">@mood.Emoji</span>
                                 <span class="moodLabel">@mood.Name</span>
                             </button>
@@ -221,24 +226,40 @@
                     <label class="modalLabel moodSectionLabel">
                         Any other feelings? <span class="moodOptional">(optional, max 2)</span>
                     </label>
-                    
+
+                    <div class="categoryChips">
+                        <button type="button"
+                            class="categoryChip @(SelectedSecondaryCategory == "Positive" ? "active" : "")"
+                            @onclick="@(() => SelectSecondaryCategory("Positive"))">
+                            Positive
+                        </button>
+                        <button type="button" class="categoryChip @(SelectedSecondaryCategory == "Neutral" ? "active" : "")"
+                            @onclick="@(() => SelectSecondaryCategory("Neutral"))">
+                            Neutral
+                        </button>
+                        <button type="button"
+                            class="categoryChip @(SelectedSecondaryCategory == "Negative" ? "active" : "")"
+                            @onclick="@(() => SelectSecondaryCategory("Negative"))">
+                            Negative
+                        </button>
+                    </div>
+
                     <div class="secondaryMoodGrid">
-                        @foreach (var mood in GetMoodConfig())
+                        @foreach (var mood in GetMoodsByCategory(SelectedSecondaryCategory))
                         {
                             var isSelectedSecondary = SecondaryMoods.Contains(mood.Name);
                             var isPrimary = mood.Name == PrimaryMood;
                             var isDisabled = isPrimary || (!isSelectedSecondary && SecondaryMoods.Count >= 2);
 
                             <button type="button"
-                                    class="moodPillSecondary @(isSelectedSecondary ? "selected" : "") @(isDisabled ? "disabled" : "")"
-                                    @onclick="() => OnSecondaryMoodToggle(mood.Name)"
-                                    disabled="@isDisabled">
+                                class="moodPillSecondary @(isSelectedSecondary ? "selected" : "") @(isDisabled ? "disabled" : "")"
+                                @onclick="() => OnSecondaryMoodToggle(mood.Name)" disabled="@isDisabled">
                                 <span class="moodEmoji">@mood.Emoji</span>
                                 <span class="moodLabel">@mood.Name</span>
                             </button>
                         }
                     </div>
-                    
+
                     @if (!string.IsNullOrWhiteSpace(MoodError))
                     {
                         <div class="pinError">@MoodError</div>
@@ -269,7 +290,7 @@
         --primary-rgb: var(--mud-palette-primary-rgb);
         --danger: var(--mud-palette-error);
         --danger-rgb: var(--mud-palette-error-rgb);
-        --shadow: 0 12px 40px rgba(0,0,0,0.18);
+        --shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
         --radius: 16px;
         background: var(--bg);
     }
@@ -318,7 +339,7 @@
         height: 10px;
         border-radius: 50%;
         background: radial-gradient(circle at 30% 30%, #a7f3d0, #22c55e);
-        box-shadow: 0 0 0 3px rgba(34,197,94,0.15);
+        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
         flex: 0 0 auto;
     }
 
@@ -378,18 +399,18 @@
         font-size: 13px;
     }
 
-        .btn:hover:not(:disabled) {
-            background: rgba(var(--mud-palette-surface-rgb), 0.90);
-        }
+    .btn:hover:not(:disabled) {
+        background: rgba(var(--mud-palette-surface-rgb), 0.90);
+    }
 
-        .btn:active:not(:disabled) {
-            transform: translateY(1px);
-        }
+    .btn:active:not(:disabled) {
+        transform: translateY(1px);
+    }
 
-        .btn:disabled {
-            opacity: 0.55;
-            cursor: not-allowed;
-        }
+    .btn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+    }
 
     .btnIcon {
         font-size: 14px;
@@ -402,20 +423,20 @@
         border-color: rgba(var(--primary-rgb), 0.30);
     }
 
-        .btnPrimary:hover:not(:disabled) {
-            background: rgba(var(--primary-rgb), 0.20);
-            border-color: rgba(var(--primary-rgb), 0.40);
-        }
+    .btnPrimary:hover:not(:disabled) {
+        background: rgba(var(--primary-rgb), 0.20);
+        border-color: rgba(var(--primary-rgb), 0.40);
+    }
 
     .btnDanger {
         background: rgba(var(--danger-rgb), 0.12);
         border-color: rgba(var(--danger-rgb), 0.28);
     }
 
-        .btnDanger:hover:not(:disabled) {
-            background: rgba(var(--danger-rgb), 0.18);
-            border-color: rgba(var(--danger-rgb), 0.40);
-        }
+    .btnDanger:hover:not(:disabled) {
+        background: rgba(var(--danger-rgb), 0.18);
+        border-color: rgba(var(--danger-rgb), 0.40);
+    }
 
     .contentGrid {
         display: grid;
@@ -470,75 +491,75 @@
         line-height: 1.55;
     }
 
-        /* Keep the journal content font normal (not monospace) */
-        .editor ::deep .ql-container {
-            font-family: inherit;
-            font-size: 14px;
-            line-height: 1.55;
-            border: none;
-        }
+    /* Keep the journal content font normal (not monospace) */
+    .editor ::deep .ql-container {
+        font-family: inherit;
+        font-size: 14px;
+        line-height: 1.55;
+        border: none;
+    }
 
-        .editor ::deep .ql-editor {
-            min-height: 380px;
-            color: var(--text);
-        }
+    .editor ::deep .ql-editor {
+        min-height: 380px;
+        color: var(--text);
+    }
 
-            .editor ::deep .ql-editor.ql-blank::before {
-                color: rgba(var(--mud-palette-text-secondary-rgb), 0.65);
-                content: attr(data-placeholder);
-            }
+    .editor ::deep .ql-editor.ql-blank::before {
+        color: rgba(var(--mud-palette-text-secondary-rgb), 0.65);
+        content: attr(data-placeholder);
+    }
 
-        /* Toolbar surface */
-        .editor ::deep .ql-toolbar {
-            border: none;
-            border-bottom: 1px solid var(--border);
-            background: rgba(var(--mud-palette-surface-rgb), 0.85);
-        }
+    /* Toolbar surface */
+    .editor ::deep .ql-toolbar {
+        border: none;
+        border-bottom: 1px solid var(--border);
+        background: rgba(var(--mud-palette-surface-rgb), 0.85);
+    }
 
-        /* ✅ Fix toolbar icons (stroke/fill) for dark mode */
-        .editor ::deep .ql-stroke {
-            stroke: var(--text) !important;
-            opacity: 0.85;
-        }
+    /* ✅ Fix toolbar icons (stroke/fill) for dark mode */
+    .editor ::deep .ql-stroke {
+        stroke: var(--text) !important;
+        opacity: 0.85;
+    }
 
-        .editor ::deep .ql-fill {
-            fill: var(--text) !important;
-            opacity: 0.85;
-        }
+    .editor ::deep .ql-fill {
+        fill: var(--text) !important;
+        opacity: 0.85;
+    }
 
-        .editor ::deep .ql-picker-label,
-        .editor ::deep .ql-picker-item {
-            color: var(--text) !important;
-            opacity: 0.9;
-        }
+    .editor ::deep .ql-picker-label,
+    .editor ::deep .ql-picker-item {
+        color: var(--text) !important;
+        opacity: 0.9;
+    }
 
-        /* Buttons hover/active */
-        .editor ::deep .ql-toolbar button:hover,
-        .editor ::deep .ql-toolbar button:focus {
-            background: rgba(var(--primary-rgb), 0.10);
-            border-radius: 10px;
-        }
+    /* Buttons hover/active */
+    .editor ::deep .ql-toolbar button:hover,
+    .editor ::deep .ql-toolbar button:focus {
+        background: rgba(var(--primary-rgb), 0.10);
+        border-radius: 10px;
+    }
 
-        .editor ::deep .ql-toolbar button.ql-active {
-            background: rgba(var(--primary-rgb), 0.18);
-            border-radius: 10px;
-        }
+    .editor ::deep .ql-toolbar button.ql-active {
+        background: rgba(var(--primary-rgb), 0.18);
+        border-radius: 10px;
+    }
 
-        /* Dropdown panel background + text */
-        .editor ::deep .ql-picker-options {
-            background: rgba(var(--mud-palette-surface-rgb), 0.98) !important;
-            border: 1px solid var(--border) !important;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.18);
-        }
+    /* Dropdown panel background + text */
+    .editor ::deep .ql-picker-options {
+        background: rgba(var(--mud-palette-surface-rgb), 0.98) !important;
+        border: 1px solid var(--border) !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+    }
 
-            .editor ::deep .ql-picker-options .ql-picker-item {
-                color: var(--text) !important;
-            }
+    .editor ::deep .ql-picker-options .ql-picker-item {
+        color: var(--text) !important;
+    }
 
-                .editor ::deep .ql-picker-options .ql-picker-item:hover,
-                .editor ::deep .ql-picker-options .ql-picker-item.ql-selected {
-                    background: rgba(var(--primary-rgb), 0.12);
-                }
+    .editor ::deep .ql-picker-options .ql-picker-item:hover,
+    .editor ::deep .ql-picker-options .ql-picker-item.ql-selected {
+        background: rgba(var(--primary-rgb), 0.12);
+    }
 
     .editorFooter {
         padding: 10px 14px;
@@ -558,7 +579,7 @@
     .modalOverlay {
         position: fixed;
         inset: 0;
-        background: rgba(0,0,0,0.55);
+        background: rgba(0, 0, 0, 0.55);
         display: grid;
         place-items: center;
         z-index: 9999;
@@ -571,7 +592,7 @@
         background: rgba(var(--mud-palette-surface-rgb), 0.98);
         border: 1px solid var(--border);
         border-radius: 16px;
-        box-shadow: 0 18px 70px rgba(0,0,0,0.35);
+        box-shadow: 0 18px 70px rgba(0, 0, 0, 0.35);
         overflow: hidden;
         color: var(--text);
         display: flex;
@@ -677,15 +698,15 @@
         min-width: 44px;
     }
 
-        .pinBtn:hover {
-            background: rgba(var(--mud-palette-surface-rgb), 0.90);
-        }
+    .pinBtn:hover {
+        background: rgba(var(--mud-palette-surface-rgb), 0.90);
+    }
 
-        .pinBtn svg {
-            width: 18px;
-            height: 18px;
-            stroke: var(--text);
-        }
+    .pinBtn svg {
+        width: 18px;
+        height: 18px;
+        stroke: var(--text);
+    }
 
     .pinHelp {
         font-size: 12px;
@@ -715,10 +736,10 @@
         text-underline-offset: 3px;
     }
 
-        .dangerLink:disabled {
-            opacity: .55;
-            cursor: not-allowed;
-        }
+    .dangerLink:disabled {
+        opacity: .55;
+        cursor: not-allowed;
+    }
 
     /* Premium Mood Selection UI */
     .moodSection {
@@ -741,10 +762,43 @@
         font-size: 12px;
     }
 
+    /* CATEGORY CHIPS */
+    .categoryChips {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+    }
+
+    .categoryChip {
+        padding: 8px 20px;
+        border-radius: 20px;
+        border: 2px solid var(--border);
+        background: var(--card-bg);
+        color: var(--text);
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        outline: none;
+    }
+
+    .categoryChip:hover:not(.active) {
+        border-color: rgba(var(--primary-rgb), 0.4);
+        background: rgba(var(--primary-rgb), 0.05);
+    }
+
+    .categoryChip.active {
+        border-color: var(--primary);
+        background: var(--primary);
+        color: white;
+        box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.3);
+    }
+
     /* PRIMARY MOOD GRID */
     .primaryMoodGrid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
         gap: 12px;
         margin-top: 12px;
     }
@@ -767,53 +821,53 @@
         overflow: hidden;
     }
 
-        .moodPillPrimary::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(135deg, rgba(var(--primary-rgb), 0) 0%, rgba(var(--primary-rgb), 0.05) 100%);
-            opacity: 0;
-            transition: opacity 0.25s ease;
-        }
+    .moodPillPrimary::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, rgba(var(--primary-rgb), 0) 0%, rgba(var(--primary-rgb), 0.05) 100%);
+        opacity: 0;
+        transition: opacity 0.25s ease;
+    }
 
-        .moodPillPrimary:hover:not(.selected) {
-            border-color: rgba(var(--primary-rgb), 0.4);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(var(--primary-rgb), 0.15);
-        }
+    .moodPillPrimary:hover:not(.selected) {
+        border-color: rgba(var(--primary-rgb), 0.4);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(var(--primary-rgb), 0.15);
+    }
 
-            .moodPillPrimary:hover:not(.selected)::before {
-                opacity: 1;
-            }
+    .moodPillPrimary:hover:not(.selected)::before {
+        opacity: 1;
+    }
 
-        .moodPillPrimary.selected {
-            border-color: var(--primary);
-            background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.15) 0%, rgba(var(--primary-rgb), 0.25) 100%);
-            box-shadow: 0 8px 24px rgba(var(--primary-rgb), 0.3), 0 0 0 1px rgba(var(--primary-rgb), 0.5);
-            transform: scale(1.02);
-        }
+    .moodPillPrimary.selected {
+        border-color: var(--primary);
+        background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.15) 0%, rgba(var(--primary-rgb), 0.25) 100%);
+        box-shadow: 0 8px 24px rgba(var(--primary-rgb), 0.3), 0 0 0 1px rgba(var(--primary-rgb), 0.5);
+        transform: scale(1.02);
+    }
 
-        .moodPillPrimary .moodEmoji {
-            font-size: 36px;
-            line-height: 1;
-            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
-        }
+    .moodPillPrimary .moodEmoji {
+        font-size: 36px;
+        line-height: 1;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+    }
 
-        .moodPillPrimary .moodLabel {
-            font-size: 14px;
-            font-weight: 700;
-            color: var(--text);
-            letter-spacing: 0.02em;
-        }
+    .moodPillPrimary .moodLabel {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text);
+        letter-spacing: 0.02em;
+    }
 
-        .moodPillPrimary.selected .moodLabel {
-            color: var(--primary);
-        }
+    .moodPillPrimary.selected .moodLabel {
+        color: var(--primary);
+    }
 
     /* SECONDARY MOOD GRID */
     .secondaryMoodGrid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
         gap: 10px;
         margin-top: 12px;
     }
@@ -834,41 +888,41 @@
         box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
     }
 
-        .moodPillSecondary:hover:not(.selected):not(.disabled) {
-            border-color: rgba(var(--text-rgb), 0.3);
-            background: rgba(var(--mud-palette-surface-rgb), 0.95);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
+    .moodPillSecondary:hover:not(.selected):not(.disabled) {
+        border-color: rgba(var(--text-rgb), 0.3);
+        background: rgba(var(--mud-palette-surface-rgb), 0.95);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
 
-        .moodPillSecondary.selected {
-            border-color: rgba(var(--primary-rgb), 0.6);
-            background: rgba(var(--primary-rgb), 0.12);
-            box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.2);
-        }
+    .moodPillSecondary.selected {
+        border-color: rgba(var(--primary-rgb), 0.6);
+        background: rgba(var(--primary-rgb), 0.12);
+        box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.2);
+    }
 
-        .moodPillSecondary.disabled {
-            opacity: 0.35;
-            cursor: not-allowed;
-            filter: grayscale(0.5);
-        }
+    .moodPillSecondary.disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+        filter: grayscale(0.5);
+    }
 
-        .moodPillSecondary .moodEmoji {
-            font-size: 28px;
-            line-height: 1;
-            filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.08));
-        }
+    .moodPillSecondary .moodEmoji {
+        font-size: 28px;
+        line-height: 1;
+        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.08));
+    }
 
-        .moodPillSecondary .moodLabel {
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--text);
-        }
+    .moodPillSecondary .moodLabel {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text);
+    }
 
-        .moodPillSecondary.selected .moodLabel {
-            color: var(--primary);
-            font-weight: 700;
-        }
+    .moodPillSecondary.selected .moodLabel {
+        color: var(--primary);
+        font-weight: 700;
+    }
 
     /* Responsive adjustments */
     @@media (max-width: 600px) {
