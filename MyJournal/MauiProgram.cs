@@ -1,8 +1,9 @@
-﻿using MyJournal.Services;
-using JournalMaui.Services;
+﻿using JournalMaui.Services;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using MudBlazor.Services;
-using Microsoft.Extensions.Configuration;
+using MyJournal.Services;
+using SQLite;
 using System.Reflection;
 
 namespace MyJournal
@@ -64,6 +65,14 @@ namespace MyJournal
 
                 return calDb;
             });
+
+            builder.Services.AddSingleton(sp =>
+            {
+                var dbPath = Path.Combine(FileSystem.AppDataDirectory, "journal.db3");
+                return new SQLiteAsyncConnection(dbPath);
+            });
+
+            builder.Services.AddSingleton<CustomTagService>();
 
             return builder.Build();
         }

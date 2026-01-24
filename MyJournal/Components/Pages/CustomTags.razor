@@ -1,4 +1,294 @@
 ﻿@page "/customTag"
+@using MyJournal.Models
+@inject MyJournal.Services.CustomTagService TagService
 
-<h1>Hello Ashika, This is where you will edit custom tags.</h1>
+<div class="tag-page">
+    <h1 class="title">Tags</h1>
+    <p class="subtitle">
+        Pre-built tags are always available. Add your own custom tags below.
+    </p>
 
+    <!-- PRE-BUILT TAGS -->
+    <section class="section">
+        <div class="section-head">
+            <h2 class="section-title">Pre-built Tags</h2>
+        </div>
+
+        <div class="tag-grid">
+            @foreach (var tag in PrebuiltTags)
+            {
+                <span class="tag-pill prebuilt">@tag</span>
+            }
+        </div>
+    </section>
+
+    <!-- CUSTOM TAGS -->
+    <section class="section">
+        <div class="section-head">
+            <h2 class="section-title">Custom Tags</h2>
+
+            <!-- Tap to edit + pen -->
+            <button type="button" class="edit-chip" @onclick="ToggleEdit" title="Edit custom tags">
+                <span class="hint-text">@(IsEditMode ? "Done" : "Tap to edit")</span>
+                <span class="hint-icon">✎</span>
+            </button>
+        </div>
+
+        @if (UserTags.Count == 0)
+        {
+            <p class="empty">No custom tags yet.</p>
+        }
+        else
+        {
+            <div class="tag-grid">
+                @foreach (var t in UserTags)
+                {
+                    <span class="tag-pill custom @(IsEditMode ? "editable" : "")">
+                        @t.Name
+
+                        @if (IsEditMode)
+                        {
+                            <button type="button"
+                                    class="remove"
+                                    title="Delete"
+                                    @onclick="() => RemoveTagAsync(t.Id)">
+                                ×
+                            </button>
+                        }
+                    </span>
+                }
+            </div>
+        }
+
+        <!-- Add -->
+        <div class="add-tag">
+            <input placeholder="Add a new tag..."
+                   @bind="NewTag"
+                   @bind:event="oninput"
+                   maxlength="20" />
+
+            <button type="button" @onclick="AddTagAsync" disabled="@string.IsNullOrWhiteSpace(NewTag)">
+                Add
+            </button>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Message))
+        {
+            <p class="msg">@Message</p>
+        }
+    </section>
+</div>
+
+@code {
+    private string NewTag = "";
+    private string Message = "";
+    private List<CustomTag> UserTags = new();
+
+    private bool IsEditMode = false;
+
+    private readonly List<string> PrebuiltTags = new()
+    {
+        "Work", "Career", "Studies", "Family", "Friends", "Relationships",
+        "Health", "Fitness", "Personal Growth", "Self-care", "Hobbies",
+        "Travel", "Nature", "Finance", "Spirituality",
+        "Birthday", "Holiday", "Vacation", "Celebration",
+        "Exercise", "Reading", "Writing", "Cooking",
+        "Meditation", "Yoga", "Music", "Shopping",
+        "Parenting", "Projects", "Planning", "Reflection"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await TagService.InitAsync();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        UserTags = await TagService.GetAllAsync();
+        StateHasChanged();
+    }
+
+    private void ToggleEdit()
+    {
+        IsEditMode = !IsEditMode;
+        Message = "";
+        StateHasChanged();
+    }
+
+    private async Task AddTagAsync()
+    {
+        Message = "";
+
+        var ok = await TagService.AddAsync(NewTag);
+
+        if (!ok)
+            Message = "That tag already exists (or is empty).";
+
+        NewTag = "";
+        await LoadAsync();
+    }
+
+    private async Task RemoveTagAsync(int id)
+    {
+        Message = "";
+        await TagService.DeleteAsync(id);
+        await LoadAsync();
+    }
+}
+
+<style>
+    .tag-page {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 24px;
+    }
+
+    .title {
+        font-size: 28px;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .subtitle {
+        color: #777;
+        margin: 6px 0 20px 0;
+    }
+
+    .section {
+        margin-bottom: 36px;
+    }
+
+    .section-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+    .section-title {
+        font-size: 18px;
+        margin: 0;
+    }
+
+    .tag-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .tag-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 12px;
+        border-radius: 999px;
+        font-size: 14px;
+        background: #f3f3f3;
+        color: #333;
+        position: relative;
+    }
+
+        .tag-pill.prebuilt {
+            background: #eee;
+        }
+
+        .tag-pill.custom {
+            background: #e9f0ff;
+        }
+
+            .tag-pill.custom.editable {
+                padding-right: 30px;
+            }
+
+    .remove {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 20px;
+        height: 20px;
+        border-radius: 999px;
+        border: none;
+        cursor: pointer;
+        font-size: 14px;
+        line-height: 1;
+        background: rgba(0,0,0,0.08);
+        color: #222;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .remove:hover {
+            background: rgba(0,0,0,0.14);
+        }
+
+    .add-tag {
+        display: flex;
+        gap: 10px;
+        margin-top: 16px;
+    }
+
+        .add-tag input {
+            flex: 1;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+            outline: none;
+        }
+
+        .add-tag button {
+            padding: 10px 16px;
+            border-radius: 10px;
+            border: none;
+            background: #000;
+            color: white;
+            cursor: pointer;
+        }
+
+            .add-tag button:disabled {
+                opacity: 0.4;
+                cursor: not-allowed;
+            }
+
+    .msg {
+        margin-top: 10px;
+        color: #666;
+        font-size: 14px;
+    }
+
+    .empty {
+        color: #888;
+        font-style: italic;
+        margin: 0 0 10px 0;
+    }
+
+    /* Tap to edit chip */
+    .edit-chip {
+        border: 1px solid #e6e6e6;
+        background: #fff;
+        border-radius: 999px;
+        padding: 8px 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        user-select: none;
+    }
+
+        .edit-chip:hover {
+            background: #fafafa;
+        }
+
+    .hint-text {
+        font-size: 13px;
+        color: #666;
+    }
+
+    .hint-icon {
+        font-size: 14px;
+        color: #222;
+    }
+</style>
