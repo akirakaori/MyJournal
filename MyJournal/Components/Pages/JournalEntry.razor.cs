@@ -4,6 +4,9 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using System.Globalization;
+using Bogus;
+using System.Net;
+using System.Text;
 
 namespace MyJournal.Components.Pages;
 
@@ -12,11 +15,19 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
     [Inject] private JournalDatabases Db { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
 
+    
     [Inject] private PinUnlockService PinUnlock { get; set; } = default!;
+    
+    private readonly Faker _faker = new Faker("en_US");
+
 
 
     [SupplyParameterFromQuery(Name = "date")]
+
+
     public string? Date { get; set; }
+
+
 
     private DateTime SelectedDate = DateTime.Today;
 
@@ -67,6 +78,42 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
         new("Lonely", "😔", "Negative"),
         new("Anxious", "😰", "Negative")
     };
+
+    private async Task GenerateRandomEntry()
+    {
+        if (IsLocked) return;
+
+        // pick 3-7 paragraphs
+        var paraCount = _faker.Random.Int(3, 7);
+
+        var sb = new StringBuilder();
+
+        for (var i = 0; i < paraCount; i++)
+        {
+            // 3-7 sentences per paragraph
+            var p = _faker.Lorem.Paragraph(_faker.Random.Int(3, 7));
+
+            // encode text safely, then wrap as HTML paragraphs for Quill
+            sb.Append("<p>");
+            sb.Append(WebUtility.HtmlEncode(p));
+            sb.Append("</p>");
+        }
+
+        Content = sb.ToString();
+
+        // update quill UI
+        if (_dotNetRef is not null)
+            await JS.InvokeVoidAsync("setQuillHtml", Content);
+
+        // quick character count (plain text-ish)
+        CharacterCount = WebUtility.HtmlDecode(string.Concat(Content
+                .Replace("<p>", "")
+                .Replace("</p>", "")
+                .Replace("&nbsp;", " ")
+            )).Length;
+
+        Status = "random text generated.";
+    }
 
     private List<MoodConfig> GetMoodConfig() => _moodConfigs;
     
