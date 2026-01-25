@@ -22,4 +22,8 @@ public class JournalEntries
     // Mood tracking (Feature 3)
     public string PrimaryMood { get; set; } = "";
     public string SecondaryMoodsCsv { get; set; } = "";
+
+    public string? TagsCsv { get; set; }
+    public string? PrimaryCategory { get; set; }
+
 }

@@ -14,20 +14,14 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
 {
     [Inject] private JournalDatabases Db { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
-
-    
     [Inject] private PinUnlockService PinUnlock { get; set; } = default!;
-    
+    [Inject] private MyJournal.Services.CustomTagService TagService { get; set; } = default!;
+    //[Inject] private IJSRuntime JS { get; set; } = default!;
+
     private readonly Faker _faker = new Faker("en_US");
 
-
-
     [SupplyParameterFromQuery(Name = "date")]
-
-
     public string? Date { get; set; }
-
-
 
     private DateTime SelectedDate = DateTime.Today;
 
@@ -41,7 +35,17 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
     private DateTime? UpdatedAt;
 
     private bool ShowTitleModal = false;
-    private string TitleInput = "";
+
+    private string _titleInput = "";
+    private string TitleInput
+    {
+        get => _titleInput;
+        set
+        {
+            _titleInput = value ?? "";
+            Status = "";
+        }
+    }
 
     private JournalEntries? _current;
     private DotNetObjectReference<JournalEntry>? _dotNetRef;
@@ -51,27 +55,82 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
     private string UpdatedAtText => UpdatedAt?.ToString("yyyy-MM-dd HH:mm") ?? "-";
 
     // ---------------------------
-    // Mood Tracking (Feature 3)
+    // Tags
+    // ---------------------------
+    private readonly List<string> PrebuiltTags = new()
+    {
+        "Work", "Career", "Studies", "Family", "Friends", "Relationships",
+        "Health", "Fitness", "Personal Growth", "Self-care", "Hobbies",
+        "Travel", "Nature", "Finance", "Spirituality",
+        "Birthday", "Holiday", "Vacation", "Celebration",
+        "Exercise", "Reading", "Writing", "Cooking",
+        "Meditation", "Yoga", "Music", "Shopping",
+        "Parenting", "Projects", "Planning", "Reflection"
+    };
+
+    private void ToggleTag(string tag)
+    {
+        tag = (tag ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(tag)) return;
+
+        if (SelectedTags.Contains(tag))
+            SelectedTags.Remove(tag);
+        else
+            SelectedTags.Add(tag);
+    }
+
+
+    private List<MyJournal.Models.CustomTag> CustomTags = new();
+
+    // Selected tags only live here; available lists are derived in razor
+    private HashSet<string> SelectedTags = new(StringComparer.OrdinalIgnoreCase);
+
+    private void AddSelectedTag(string tag)
+    {
+        tag = (tag ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(tag)) return;
+        SelectedTags.Add(tag);
+    }
+
+    private void RemoveSelectedTag(string tag)
+    {
+        tag = (tag ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(tag)) return;
+        SelectedTags.Remove(tag);
+    }
+
+    private async Task LoadCustomTagsAsync()
+    {
+        try
+        {
+            await TagService.InitAsync();
+            CustomTags = await TagService.GetAllAsync();
+        }
+        catch
+        {
+            CustomTags = new();
+        }
+    }
+
+    // ---------------------------
+    // Mood Tracking
     // ---------------------------
     private record MoodConfig(string Name, string Emoji, string Category);
-    
+
     private static readonly List<MoodConfig> _moodConfigs = new()
     {
-        // POSITIVE
         new("Happy", "😊", "Positive"),
         new("Excited", "🤩", "Positive"),
         new("Relaxed", "😌", "Positive"),
         new("Grateful", "🙏", "Positive"),
         new("Confident", "💪", "Positive"),
-        
-        // NEUTRAL
+
         new("Calm", "😐", "Neutral"),
         new("Thoughtful", "🤔", "Neutral"),
         new("Curious", "🧐", "Neutral"),
         new("Nostalgic", "🥺", "Neutral"),
         new("Bored", "😑", "Neutral"),
-        
-        // NEGATIVE
+
         new("Sad", "😢", "Negative"),
         new("Angry", "😠", "Negative"),
         new("Stressed", "😣", "Negative"),
@@ -79,61 +138,19 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
         new("Anxious", "😰", "Negative")
     };
 
-    private async Task GenerateRandomEntry()
-    {
-        if (IsLocked) return;
-
-        // pick 3-7 paragraphs
-        var paraCount = _faker.Random.Int(3, 7);
-
-        var sb = new StringBuilder();
-
-        for (var i = 0; i < paraCount; i++)
-        {
-            // 3-7 sentences per paragraph
-            var p = _faker.Lorem.Paragraph(_faker.Random.Int(3, 7));
-
-            // encode text safely, then wrap as HTML paragraphs for Quill
-            sb.Append("<p>");
-            sb.Append(WebUtility.HtmlEncode(p));
-            sb.Append("</p>");
-        }
-
-        Content = sb.ToString();
-
-        // update quill UI
-        if (_dotNetRef is not null)
-            await JS.InvokeVoidAsync("setQuillHtml", Content);
-
-        // quick character count (plain text-ish)
-        CharacterCount = WebUtility.HtmlDecode(string.Concat(Content
-                .Replace("<p>", "")
-                .Replace("</p>", "")
-                .Replace("&nbsp;", " ")
-            )).Length;
-
-        Status = "random text generated.";
-    }
-
-    private List<MoodConfig> GetMoodConfig() => _moodConfigs;
-    
-    // Category filtering for UI
     private string SelectedPrimaryCategory = "Positive";
     private string SelectedSecondaryCategory = "Positive";
-    
+
     private List<MoodConfig> GetMoodsByCategory(string category)
-    {
-        return _moodConfigs.Where(m => m.Category == category).ToList();
-    }
-    
+        => _moodConfigs.Where(m => m.Category == category).ToList();
+
     private void SelectPrimaryCategory(string category)
     {
         SelectedPrimaryCategory = category;
-        // Clear primary mood and secondary moods when category changes for clean UX
         PrimaryMood = "";
         SecondaryMoods.Clear();
     }
-    
+
     private void SelectSecondaryCategory(string category)
     {
         SelectedSecondaryCategory = category;
@@ -145,36 +162,29 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
         get => _primaryMood;
         set
         {
-            _primaryMood = value;
+            _primaryMood = value ?? "";
             MoodError = "";
-            // Remove from secondary if it was selected
-            if (SecondaryMoods.Contains(value))
-            {
-                SecondaryMoods.Remove(value);
-            }
+            if (SecondaryMoods.Contains(_primaryMood))
+                SecondaryMoods.Remove(_primaryMood);
         }
     }
 
     private void SelectPrimaryMood(string mood)
     {
-        // Selecting a new primary mood automatically replaces the previous one
-        // and clears secondary moods to prevent conflicts
         if (_primaryMood != mood)
-        {
             SecondaryMoods.Clear();
-        }
+
         PrimaryMood = mood;
         MoodError = "";
     }
 
-    private HashSet<string> SecondaryMoods = new();
+    private HashSet<string> SecondaryMoods = new(StringComparer.OrdinalIgnoreCase);
     private string MoodError = "";
 
     private void OnSecondaryMoodToggle(string mood)
     {
         MoodError = "";
 
-        // Cannot select primary mood as secondary
         if (mood.Equals(PrimaryMood, StringComparison.OrdinalIgnoreCase))
         {
             MoodError = "Secondary mood cannot be the same as primary mood.";
@@ -187,21 +197,32 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
         }
         else
         {
-            // Enforce maximum of 2 secondary moods
             if (SecondaryMoods.Count >= 2)
             {
                 MoodError = "You can select at most 2 secondary moods.";
                 return;
             }
-
             SecondaryMoods.Add(mood);
         }
     }
 
     // ---------------------------
-    // Save PIN (optional)
+    // PIN
     // ---------------------------
-    private string PinInput = "";
+    private string _pinInput = "";
+    private string PinInput
+    {
+        get => _pinInput;
+        set
+        {
+            _pinInput = NormalizePin(value ?? "");
+            if (!string.IsNullOrEmpty(_pinInput) && _pinInput.Length is > 0 and < 4)
+                PinError = "PIN must be exactly 4 characters.";
+            else
+                PinError = "";
+        }
+    }
+
     private bool PinMasked = true;
     private string PinError = "";
     private bool HasPin = false;
@@ -214,11 +235,9 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
     private string UnlockPinInput = "";
     private string UnlockError = "";
 
-    // Hold protected data until unlock
     private string _lockedContent = "";
     private string _lockedTitle = "";
 
-    // Eye icons (used only in SAVE modal)
     private const string EyeSvg =
         "<svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 24 24\" stroke-width=\"2\" stroke=\"currentColor\">" +
         "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z\"/>" +
@@ -239,8 +258,6 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
         {
             _dotNetRef = DotNetObjectReference.Create(this);
             await JS.InvokeVoidAsync("initQuill", "journal-description", _dotNetRef);
-
-            // If locked, keep editor empty
             await JS.InvokeVoidAsync("setQuillHtml", IsLocked ? "" : (Content ?? ""));
         }
     }
@@ -262,6 +279,35 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
         return DateTime.Today;
     }
 
+    private async Task GenerateRandomEntry()
+    {
+        if (IsLocked) return;
+
+        var paraCount = _faker.Random.Int(3, 7);
+        var sb = new StringBuilder();
+
+        for (var i = 0; i < paraCount; i++)
+        {
+            var p = _faker.Lorem.Paragraph(_faker.Random.Int(3, 7));
+            sb.Append("<p>");
+            sb.Append(WebUtility.HtmlEncode(p));
+            sb.Append("</p>");
+        }
+
+        Content = sb.ToString();
+
+        if (_dotNetRef is not null)
+            await JS.InvokeVoidAsync("setQuillHtml", Content);
+
+        CharacterCount = WebUtility.HtmlDecode(string.Concat(Content
+            .Replace("<p>", "")
+            .Replace("</p>", "")
+            .Replace("&nbsp;", " ")
+        )).Length;
+
+        Status = "random text generated.";
+    }
+
     private async Task LoadBySelectedDateAsync()
     {
         IsBusy = true;
@@ -271,12 +317,10 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
         {
             _current = await Db.GetByDateAsync(SelectedDate);
 
-            // reset lock state for new date
             IsLocked = false;
             ShowUnlockModal = false;
             UnlockPinInput = "";
             UnlockError = "";
-
             _lockedContent = "";
             _lockedTitle = "";
 
@@ -284,6 +328,7 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
             {
                 Content = "";
                 CurrentTitle = "";
+                TitleInput = "";
                 CreatedAt = null;
                 UpdatedAt = null;
                 CharacterCount = 0;
@@ -292,69 +337,79 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
                 PinInput = "";
                 PinError = "";
 
-                // Reset moods
                 _primaryMood = "";
                 SecondaryMoods.Clear();
                 MoodError = "";
 
-                Status = "No entry for this date. Start writing!";
+                SelectedTags.Clear();
 
                 if (_dotNetRef is not null)
                     await JS.InvokeVoidAsync("setQuillHtml", "");
+
+                Status = "No entry for this date. Start writing!";
+                return;
             }
-            else
+
+            CreatedAt = _current.CreatedAt;
+            UpdatedAt = _current.UpdatedAt;
+            HasPin = _current.HasPin;
+
+            // Load moods
+            _primaryMood = _current.PrimaryMood ?? "";
+            SecondaryMoods.Clear();
+            if (!string.IsNullOrWhiteSpace(_current.SecondaryMoodsCsv))
             {
-                CreatedAt = _current.CreatedAt;
-                UpdatedAt = _current.UpdatedAt;
-                HasPin = _current.HasPin;
-
-                if (_current.HasPin && !PinUnlock.IsUnlocked(_current.DateKey))
-                {
-                    // LOCK (only when not already unlocked)
-                    IsLocked = true;
-                    ShowUnlockModal = true;
-
-                    _lockedContent = _current.Content ?? "";
-                    _lockedTitle = _current.Title ?? "";
-
-                    Content = "";
-                    CurrentTitle = _lockedTitle; // show title only
-                    CharacterCount = 0;
-
-                    if (_dotNetRef is not null)
-                        await JS.InvokeVoidAsync("setQuillHtml", "");
-
-                    Status = "Locked.";
-                }
-                else
-                {
-                    // Either not PIN protected OR already unlocked via PinUnlockService
-                    IsLocked = false;
-                    ShowUnlockModal = false;
-
-                    Content = _current.Content ?? "";
-                    CurrentTitle = _current.Title ?? "";
-
-                    // Load moods
-                    _primaryMood = _current.PrimaryMood ?? "";
-                    SecondaryMoods.Clear();
-                    if (!string.IsNullOrWhiteSpace(_current.SecondaryMoodsCsv))
-                    {
-                        var moods = _current.SecondaryMoodsCsv.Split(',', StringSplitOptions.RemoveEmptyEntries);
-                        foreach (var mood in moods.Take(2))
-                        {
-                            SecondaryMoods.Add(mood.Trim());
-                        }
-                    }
-                    MoodError = "";
-
-                    if (_dotNetRef is not null)
-                        await JS.InvokeVoidAsync("setQuillHtml", Content);
-
-                    Status = "Loaded.";
-                }
-
+                foreach (var m in _current.SecondaryMoodsCsv.Split(',', StringSplitOptions.RemoveEmptyEntries).Take(2))
+                    SecondaryMoods.Add(m.Trim());
             }
+
+            // Load category (fallback to Positive if empty)
+            SelectedPrimaryCategory = string.IsNullOrWhiteSpace(_current.PrimaryCategory) ? "Positive" : _current.PrimaryCategory!;
+            SelectedSecondaryCategory = SelectedPrimaryCategory;
+
+            // Load tags
+            SelectedTags.Clear();
+            if (!string.IsNullOrWhiteSpace(_current.TagsCsv))
+            {
+                foreach (var t in _current.TagsCsv.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var cleaned = (t ?? "").Trim();
+                    if (!string.IsNullOrWhiteSpace(cleaned))
+                        SelectedTags.Add(cleaned);
+                }
+            }
+
+            if (_current.HasPin && !PinUnlock.IsUnlocked(_current.DateKey))
+            {
+                IsLocked = true;
+                ShowUnlockModal = true;
+
+                _lockedContent = _current.Content ?? "";
+                _lockedTitle = _current.Title ?? "";
+
+                Content = "";
+                CurrentTitle = _lockedTitle;
+                TitleInput = _lockedTitle;
+                CharacterCount = 0;
+
+                if (_dotNetRef is not null)
+                    await JS.InvokeVoidAsync("setQuillHtml", "");
+
+                Status = "Locked.";
+                return;
+            }
+
+            IsLocked = false;
+            ShowUnlockModal = false;
+
+            Content = _current.Content ?? "";
+            CurrentTitle = _current.Title ?? "";
+            TitleInput = CurrentTitle;
+
+            if (_dotNetRef is not null)
+                await JS.InvokeVoidAsync("setQuillHtml", Content);
+
+            Status = "Loaded.";
         }
         finally
         {
@@ -374,17 +429,12 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
     // ---------------------------
     // Unlock modal
     // ---------------------------
-    private void OnUnlockOverlayClick()
-    {
-        // keep strict: no close by clicking outside
-    }
+    private void OnUnlockOverlayClick() { }
 
     private void CloseUnlockModal()
     {
-        // user can cancel, but stays locked
         ShowUnlockModal = false;
         Navigation.NavigateTo("/dashboard");
-
     }
 
     private void OnUnlockPinInputChanged(ChangeEventArgs e)
@@ -407,7 +457,6 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
             CloseUnlockModal();
     }
 
-
     private async Task VerifyUnlockPin()
     {
         if (_current is null || !_current.HasPin)
@@ -427,19 +476,18 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
         }
 
         var stored = NormalizePin(_current.Pin ?? "");
-
         if (pin != stored)
         {
             UnlockError = "Incorrect PIN. Try again.";
             return;
         }
 
-        // Unlock success
         IsLocked = false;
         ShowUnlockModal = false;
 
         Content = _lockedContent;
         CurrentTitle = _lockedTitle;
+        TitleInput = _lockedTitle;
 
         if (_dotNetRef is not null)
             await JS.InvokeVoidAsync("setQuillHtml", Content);
@@ -457,12 +505,12 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
             await Db.DeleteAsync(SelectedDate);
 
             _current = null;
-
             IsLocked = false;
             ShowUnlockModal = false;
 
             Content = "";
             CurrentTitle = "";
+            TitleInput = "";
             CreatedAt = null;
             UpdatedAt = null;
             CharacterCount = 0;
@@ -471,11 +519,11 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
             PinInput = "";
             PinError = "";
 
-            _lockedContent = "";
-            _lockedTitle = "";
+            _primaryMood = "";
+            SecondaryMoods.Clear();
+            MoodError = "";
 
-            UnlockPinInput = "";
-            UnlockError = "";
+            SelectedTags.Clear();
 
             if (_dotNetRef is not null)
                 await JS.InvokeVoidAsync("setQuillHtml", "");
@@ -490,15 +538,17 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
     }
 
     // ---------------------------
-    // Save flow (title modal)
+    // Save flow
     // ---------------------------
     private async Task StartSave()
     {
         if (IsLocked) return;
 
-        Content = await JS.InvokeAsync<string>("getQuillHtml");
+        await LoadCustomTagsAsync(); // for available custom tags list
 
+        Content = await JS.InvokeAsync<string>("getQuillHtml");
         Status = "";
+
         TitleInput = string.IsNullOrWhiteSpace(CurrentTitle) ? "" : CurrentTitle;
 
         PinInput = "";
@@ -517,20 +567,17 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
         var title = (TitleInput ?? "").Trim();
         if (string.IsNullOrWhiteSpace(title))
         {
-            Status = "Please enter a title.";
+            Status = "Please enter a title before saving.";
             return;
         }
 
-        // Validate mood selection
         if (string.IsNullOrWhiteSpace(PrimaryMood))
         {
             Status = "Please select a primary mood.";
             return;
         }
 
-        PinError = "";
         var pin = NormalizePin(PinInput);
-
         if (!string.IsNullOrEmpty(pin) && pin.Length != 4)
         {
             PinError = "PIN must be exactly 4 characters (or leave it empty).";
@@ -554,8 +601,19 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
             var pinToSave = hasPin ? pin : null;
 
             var secondaryMoodsList = SecondaryMoods.ToList();
+            var tagsList = SelectedTags.OrderBy(x => x).ToList();
 
-            await Db.SaveAsync(SelectedDate, title, Content, hasPin, pinToSave, PrimaryMood, secondaryMoodsList);
+            await Db.SaveAsync(
+                date: SelectedDate,
+                title: title,
+                content: Content,
+                hasPin: hasPin,
+                pin: pinToSave,
+                primaryMood: PrimaryMood,
+                secondaryMoods: secondaryMoodsList,
+                primaryCategory: SelectedPrimaryCategory,
+                tags: tagsList
+            );
 
             _current = await Db.GetByDateAsync(SelectedDate);
 
@@ -592,6 +650,8 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
             _current = null;
             Content = "";
             CurrentTitle = "";
+            TitleInput = "";
+
             CreatedAt = null;
             UpdatedAt = null;
             CharacterCount = 0;
@@ -600,11 +660,16 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
             PinInput = "";
             PinError = "";
 
-            Status = "Deleted.";
+            _primaryMood = "";
+            SecondaryMoods.Clear();
+            MoodError = "";
+
+            SelectedTags.Clear();
 
             if (_dotNetRef is not null)
                 await JS.InvokeVoidAsync("setQuillHtml", "");
 
+            Status = "Deleted.";
             Navigation.NavigateTo("/calendar?refresh=1");
         }
         finally
@@ -622,7 +687,7 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
     }
 
     // ---------------------------
-    // PIN helpers (save modal)
+    // PIN helpers
     // ---------------------------
     private void TogglePinMask() => PinMasked = !PinMasked;
 
@@ -630,16 +695,6 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
     {
         PinInput = "";
         PinError = "";
-    }
-
-    private void OnPinInputChanged(ChangeEventArgs e)
-    {
-        PinInput = NormalizePin(e.Value?.ToString() ?? "");
-
-        if (!string.IsNullOrEmpty(PinInput) && PinInput.Length is > 0 and < 4)
-            PinError = "PIN must be exactly 4 characters.";
-        else
-            PinError = "";
     }
 
     private static string NormalizePin(string input)

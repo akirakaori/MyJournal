@@ -45,21 +45,17 @@
                 </div>
 
                 <div class="btnGroup">
-
-                    <button class="btn" @onclick="GenerateRandomEntry" disabled="@(IsBusy || IsLocked)"
-                        title="generate random paragraphs">
+                    <button class="btn" @onclick="GenerateRandomEntry" disabled="@(IsBusy || IsLocked)" title="generate random paragraphs">
                         <span class="btnIcon">🎲</span>
                         <span>Bogus</span>
                     </button>
 
-                    <button class="btn btnPrimary" @onclick="StartSave" disabled="@(IsBusy || IsLocked)"
-                        title="Save entry (will ask for title)">
+                    <button class="btn btnPrimary" @onclick="StartSave" disabled="@(IsBusy || IsLocked)" title="Save entry (will ask for title)">
                         <span class="btnIcon">💾</span>
                         <span>Save</span>
                     </button>
 
-                    <button class="btn btnDanger" @onclick="Delete" disabled="@(IsBusy || IsLocked)"
-                        title="Delete entry (date+title if title is set)">
+                    <button class="btn btnDanger" @onclick="Delete" disabled="@(IsBusy || IsLocked)" title="Delete entry (date+title if title is set)">
                         <span class="btnIcon">🗑</span>
                         <span>Delete</span>
                     </button>
@@ -113,8 +109,8 @@
 
                     <div class="pinRow">
                         <input class="modalInput pinInput" type="password" value="@UnlockPinInput"
-                            @oninput="OnUnlockPinInputChanged" placeholder="4 letters/numbers" maxlength="4"
-                            autocomplete="off" @onkeydown="HandleUnlockKeyDown" />
+                               @oninput="OnUnlockPinInputChanged" placeholder="4 letters/numbers" maxlength="4"
+                               autocomplete="off" @onkeydown="HandleUnlockKeyDown" />
 
                         <button type="button" class="pinBtn" @onclick="ClearUnlockPin" title="Clear">
                             ✕
@@ -159,16 +155,24 @@
             <div class="modalBody">
                 <div class="modalField">
                     <label class="modalLabel">Title</label>
-                    <input class="modalInput" @bind="TitleInput" placeholder="e.g., My day, Study notes, Goals..."
-                        @onkeydown="HandleTitleKeyDown" />
+                    <input class="modalInput"
+                           @bind="TitleInput"
+                           @bind:event="oninput"
+                           placeholder="e.g., My day, Study notes, Goals..."
+                           @onkeydown="HandleTitleKeyDown" />
                 </div>
 
                 <div class="modalField pinField">
                     <label class="modalLabel">PIN (optional)</label>
 
                     <div class="pinRow">
-                        <input class="modalInput pinInput" type="@(PinMasked ? "password" : "text")" value="@PinInput"
-                            @oninput="OnPinInputChanged" placeholder="4 letters/numbers" maxlength="4" autocomplete="off" />
+                        <input class="modalInput pinInput"
+                               type="@(PinMasked ? "password" : "text")"
+                               @bind="PinInput"
+                               @bind:event="oninput"
+                               placeholder="4 letters/numbers"
+                               maxlength="4"
+                               autocomplete="off" />
 
                         <button type="button" class="pinBtn" @onclick="TogglePinMask" title="Show/Hide PIN">
                             @((MarkupString)(PinMasked ? EyeSvg : EyeOffSvg))
@@ -196,15 +200,15 @@
 
                     <div class="categoryChips">
                         <button type="button" class="categoryChip @(SelectedPrimaryCategory == "Positive" ? "active" : "")"
-                            @onclick="@(() => SelectPrimaryCategory("Positive"))">
+                                @onclick="@(() => SelectPrimaryCategory("Positive"))">
                             Positive
                         </button>
                         <button type="button" class="categoryChip @(SelectedPrimaryCategory == "Neutral" ? "active" : "")"
-                            @onclick="@(() => SelectPrimaryCategory("Neutral"))">
+                                @onclick="@(() => SelectPrimaryCategory("Neutral"))">
                             Neutral
                         </button>
                         <button type="button" class="categoryChip @(SelectedPrimaryCategory == "Negative" ? "active" : "")"
-                            @onclick="@(() => SelectPrimaryCategory("Negative"))">
+                                @onclick="@(() => SelectPrimaryCategory("Negative"))">
                             Negative
                         </button>
                     </div>
@@ -214,7 +218,7 @@
                         {
                             var isSelected = PrimaryMood == mood.Name;
                             <button type="button" class="moodPillPrimary @(isSelected ? "selected" : "")"
-                                @onclick="() => SelectPrimaryMood(mood.Name)">
+                                    @onclick="() => SelectPrimaryMood(mood.Name)">
                                 <span class="moodEmoji">@mood.Emoji</span>
                                 <span class="moodLabel">@mood.Name</span>
                             </button>
@@ -228,18 +232,16 @@
                     </label>
 
                     <div class="categoryChips">
-                        <button type="button"
-                            class="categoryChip @(SelectedSecondaryCategory == "Positive" ? "active" : "")"
-                            @onclick="@(() => SelectSecondaryCategory("Positive"))">
+                        <button type="button" class="categoryChip @(SelectedSecondaryCategory == "Positive" ? "active" : "")"
+                                @onclick="@(() => SelectSecondaryCategory("Positive"))">
                             Positive
                         </button>
                         <button type="button" class="categoryChip @(SelectedSecondaryCategory == "Neutral" ? "active" : "")"
-                            @onclick="@(() => SelectSecondaryCategory("Neutral"))">
+                                @onclick="@(() => SelectSecondaryCategory("Neutral"))">
                             Neutral
                         </button>
-                        <button type="button"
-                            class="categoryChip @(SelectedSecondaryCategory == "Negative" ? "active" : "")"
-                            @onclick="@(() => SelectSecondaryCategory("Negative"))">
+                        <button type="button" class="categoryChip @(SelectedSecondaryCategory == "Negative" ? "active" : "")"
+                                @onclick="@(() => SelectSecondaryCategory("Negative"))">
                             Negative
                         </button>
                     </div>
@@ -252,8 +254,9 @@
                             var isDisabled = isPrimary || (!isSelectedSecondary && SecondaryMoods.Count >= 2);
 
                             <button type="button"
-                                class="moodPillSecondary @(isSelectedSecondary ? "selected" : "") @(isDisabled ? "disabled" : "")"
-                                @onclick="() => OnSecondaryMoodToggle(mood.Name)" disabled="@isDisabled">
+                                    class="moodPillSecondary @(isSelectedSecondary ? "selected" : "") @(isDisabled ? "disabled" : "")"
+                                    @onclick="() => OnSecondaryMoodToggle(mood.Name)"
+                                    disabled="@isDisabled">
                                 <span class="moodEmoji">@mood.Emoji</span>
                                 <span class="moodLabel">@mood.Name</span>
                             </button>
@@ -263,6 +266,62 @@
                     @if (!string.IsNullOrWhiteSpace(MoodError))
                     {
                         <div class="pinError">@MoodError</div>
+                    }
+                </div>
+
+                @* -------- TAGS (Prebuilt + Custom) -------- *@
+                <div class="modalField moodSection">
+                    <label class="modalLabel moodSectionLabel">
+                        Tags <span class="moodOptional">(optional)</span>
+                    </label>
+
+                    @if (SelectedTags.Count > 0)
+                    {
+                        <div class="tagSelectedRow">
+                            <span class="tagSelectedLabel">Selected:</span>
+                            <div class="tagSelectedList">
+                                @foreach (var t in SelectedTags.OrderBy(x => x))
+                                {
+                                    <span class="tagSelectedPill">@t</span>
+                                }
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="tagSelectedRow empty">
+                            <span class="tagSelectedLabel">Selected:</span>
+                            <span class="tagSelectedEmpty">None</span>
+                        </div>
+                    }
+
+                    <div class="tagSectionTitle">Pre-built Tags</div>
+                    <div class="tagChips">
+                        @foreach (var tag in PrebuiltTags)
+                        {
+                            var active = SelectedTags.Contains(tag);
+                            <button type="button"
+                                    class="tagChip @(active ? "active" : "")"
+                                    @onclick="() => ToggleTag(tag)">
+                                @tag
+                            </button>
+                        }
+                    </div>
+
+                    @if (CustomTags.Count > 0)
+                    {
+                        <div class="tagSectionTitle">Custom Tags</div>
+                        <div class="tagChips">
+                            @foreach (var tag in CustomTags.Select(t => t.Name))
+                            {
+                                var active = SelectedTags.Contains(tag);
+                                <button type="button"
+                                        class="tagChip custom @(active ? "active" : "")"
+                                        @onclick="() => ToggleTag(tag)">
+                                    @tag
+                                </button>
+                            }
+                        </div>
                     }
                 </div>
             </div>
@@ -275,7 +334,177 @@
     </div>
 }
 
+@* NOTE: keep your existing <style> block as-is (not included here, per your request) *@
+
+
 <style>
+    .tagSection {
+        margin-top: 22px;
+    }
+
+    .tagHeaderRow {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .tagOpenBtn {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        border-radius: 999px;
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        background: rgba(var(--mud-palette-surface-rgb), 0.75);
+        color: var(--text);
+        cursor: pointer;
+        font-weight: 800;
+        font-size: 13px;
+    }
+
+        .tagOpenBtn:hover {
+            background: rgba(var(--mud-palette-surface-rgb), 0.90);
+        }
+
+    .tagCount {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 24px;
+        height: 24px;
+        padding: 0 8px;
+        border-radius: 999px;
+        background: rgba(var(--primary-rgb), 0.18);
+        border: 1px solid rgba(var(--primary-rgb), 0.35);
+        font-weight: 900;
+    }
+
+    .tagSelectedWrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 12px;
+    }
+
+    .tagSelectedPill {
+        display: inline-flex;
+        align-items: center;
+        padding: 7px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(var(--primary-rgb), 0.30);
+        background: rgba(var(--primary-rgb), 0.10);
+        color: var(--text);
+        font-weight: 800;
+        font-size: 13px;
+    }
+
+    .tagModalCard {
+        width: min(740px, 100%);
+    }
+
+    .tagModalSection {
+        margin-bottom: 18px;
+    }
+
+    .tagModalTitleRow {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+
+    .tagModalTitle {
+        font-weight: 900;
+        letter-spacing: 0.02em;
+        color: var(--text);
+    }
+
+    .tagModalHint {
+        font-size: 12px;
+        color: var(--muted);
+        font-weight: 700;
+    }
+
+    .tagEmpty {
+        margin-top: 10px;
+        color: var(--muted);
+        font-weight: 650;
+        font-size: 13px;
+    }
+
+    .tagChips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+    .tagChip {
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: rgba(var(--mud-palette-surface-rgb), 0.75);
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: all .15s ease;
+    }
+
+        .tagChip:hover:not(.active) {
+            border-color: rgba(var(--primary-rgb), 0.35);
+            background: rgba(var(--primary-rgb), 0.06);
+        }
+
+        .tagChip.active {
+            border-color: rgba(var(--primary-rgb), 0.55);
+            background: rgba(var(--primary-rgb), 0.18);
+            box-shadow: 0 6px 18px rgba(var(--primary-rgb), 0.18);
+        }
+
+        .tagChip.custom {
+            background: rgba(var(--primary-rgb), 0.10);
+        }
+
+    /* ========== CATEGORY CHIPS (fix contrast + selected obvious) ========== */
+    .categoryChip {
+        padding: 8px 20px;
+        border-radius: 20px;
+        border: 2px solid var(--border);
+        background: rgba(var(--mud-palette-surface-rgb), 0.75);
+        color: var(--text);
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.18s ease;
+        outline: none;
+    }
+
+        .categoryChip:hover:not(.active) {
+            border-color: rgba(var(--primary-rgb), 0.35);
+            background: rgba(var(--primary-rgb), 0.06);
+        }
+
+        .categoryChip.active {
+            border-color: rgba(var(--primary-rgb), 0.65);
+            background: rgba(var(--primary-rgb), 0.18);
+            color: var(--text) !important; /* ✅ prevents white-on-white */
+            box-shadow: 0 8px 22px rgba(var(--primary-rgb), 0.18);
+            position: relative;
+        }
+
+            .categoryChip.active::after {
+                content: "✓";
+                margin-left: 10px;
+                font-weight: 900;
+            }
+
+    /* =========================
+             (YOUR EXISTING CSS BELOW)
+             ========================= */
+
     /* Scope everything to this page to avoid affecting other pages */
     .pageWrap {
         /* Use MudBlazor theme variables (auto changes with IsDarkMode) */
@@ -349,16 +578,14 @@
         line-height: 1.2;
     }
 
-    .dateLabel,
-    .metaLabel {
+    .dateLabel, .metaLabel {
         font-size: 11px;
         color: var(--muted2);
         text-transform: uppercase;
         letter-spacing: 0.12em;
     }
 
-    .dateValue,
-    .metaValue {
+    .dateValue, .metaValue {
         font-size: 13px;
         color: var(--text);
     }
@@ -399,18 +626,18 @@
         font-size: 13px;
     }
 
-    .btn:hover:not(:disabled) {
-        background: rgba(var(--mud-palette-surface-rgb), 0.90);
-    }
+        .btn:hover:not(:disabled) {
+            background: rgba(var(--mud-palette-surface-rgb), 0.90);
+        }
 
-    .btn:active:not(:disabled) {
-        transform: translateY(1px);
-    }
+        .btn:active:not(:disabled) {
+            transform: translateY(1px);
+        }
 
-    .btn:disabled {
-        opacity: 0.55;
-        cursor: not-allowed;
-    }
+        .btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
 
     .btnIcon {
         font-size: 14px;
@@ -423,20 +650,20 @@
         border-color: rgba(var(--primary-rgb), 0.30);
     }
 
-    .btnPrimary:hover:not(:disabled) {
-        background: rgba(var(--primary-rgb), 0.20);
-        border-color: rgba(var(--primary-rgb), 0.40);
-    }
+        .btnPrimary:hover:not(:disabled) {
+            background: rgba(var(--primary-rgb), 0.20);
+            border-color: rgba(var(--primary-rgb), 0.40);
+        }
 
     .btnDanger {
         background: rgba(var(--danger-rgb), 0.12);
         border-color: rgba(var(--danger-rgb), 0.28);
     }
 
-    .btnDanger:hover:not(:disabled) {
-        background: rgba(var(--danger-rgb), 0.18);
-        border-color: rgba(var(--danger-rgb), 0.40);
-    }
+        .btnDanger:hover:not(:disabled) {
+            background: rgba(var(--danger-rgb), 0.18);
+            border-color: rgba(var(--danger-rgb), 0.40);
+        }
 
     .contentGrid {
         display: grid;
@@ -479,9 +706,110 @@
         max-width: 60%;
     }
 
-    /* =========================
-         Quill Editor Theming
-         ========================= */
+    .tagChips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+    .tagSectionTitle {
+        font-size: 11px;
+        color: var(--muted2);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        margin-top: 12px;
+    }
+
+    .tagSelectedRow {
+        margin-top: 8px;
+        padding: 10px 12px;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        background: rgba(var(--mud-palette-surface-rgb), 0.62);
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+        .tagSelectedRow.empty {
+            align-items: center;
+        }
+
+    .tagSelectedLabel {
+        font-size: 11px;
+        color: var(--muted2);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-weight: 800;
+        padding-top: 2px;
+    }
+
+    .tagSelectedEmpty {
+        color: var(--muted);
+        font-weight: 700;
+    }
+
+    .tagSelectedList {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .tagSelectedPill {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 800;
+        border: 1px solid rgba(var(--primary-rgb), 0.35);
+        background: rgba(var(--primary-rgb), 0.14);
+        color: var(--text);
+    }
+
+    /* tag chips */
+    .tagChip {
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: rgba(var(--mud-palette-surface-rgb), 0.72);
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: transform .06s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;
+        user-select: none;
+    }
+
+        .tagChip:hover:not(.active) {
+            border-color: rgba(var(--primary-rgb), 0.35);
+            background: rgba(var(--primary-rgb), 0.06);
+        }
+
+        .tagChip:active {
+            transform: translateY(1px);
+        }
+
+        /* ✅ selected state - very obvious in both themes */
+        .tagChip.active {
+            border-color: rgba(var(--primary-rgb), 0.85);
+            background: rgba(var(--primary-rgb), 0.22);
+            box-shadow: 0 10px 22px rgba(var(--primary-rgb), 0.22);
+            outline: 2px solid rgba(var(--primary-rgb), 0.35);
+            outline-offset: 2px;
+        }
+
+        /* optional: custom tags slightly different when NOT selected */
+        .tagChip.custom {
+            background: rgba(var(--primary-rgb), 0.10);
+        }
+
+            .tagChip.custom.active {
+                background: rgba(var(--primary-rgb), 0.26);
+            }
+
 
     .editor {
         min-height: 420px;
@@ -491,75 +819,70 @@
         line-height: 1.55;
     }
 
-    /* Keep the journal content font normal (not monospace) */
-    .editor ::deep .ql-container {
-        font-family: inherit;
-        font-size: 14px;
-        line-height: 1.55;
-        border: none;
-    }
+        .editor ::deep .ql-container {
+            font-family: inherit;
+            font-size: 14px;
+            line-height: 1.55;
+            border: none;
+        }
 
-    .editor ::deep .ql-editor {
-        min-height: 380px;
-        color: var(--text);
-    }
+        .editor ::deep .ql-editor {
+            min-height: 380px;
+            color: var(--text);
+        }
 
-    .editor ::deep .ql-editor.ql-blank::before {
-        color: rgba(var(--mud-palette-text-secondary-rgb), 0.65);
-        content: attr(data-placeholder);
-    }
+            .editor ::deep .ql-editor.ql-blank::before {
+                color: rgba(var(--mud-palette-text-secondary-rgb), 0.65);
+                content: attr(data-placeholder);
+            }
 
-    /* Toolbar surface */
-    .editor ::deep .ql-toolbar {
-        border: none;
-        border-bottom: 1px solid var(--border);
-        background: rgba(var(--mud-palette-surface-rgb), 0.85);
-    }
+        .editor ::deep .ql-toolbar {
+            border: none;
+            border-bottom: 1px solid var(--border);
+            background: rgba(var(--mud-palette-surface-rgb), 0.85);
+        }
 
-    /* ✅ Fix toolbar icons (stroke/fill) for dark mode */
-    .editor ::deep .ql-stroke {
-        stroke: var(--text) !important;
-        opacity: 0.85;
-    }
+        .editor ::deep .ql-stroke {
+            stroke: var(--text) !important;
+            opacity: 0.85;
+        }
 
-    .editor ::deep .ql-fill {
-        fill: var(--text) !important;
-        opacity: 0.85;
-    }
+        .editor ::deep .ql-fill {
+            fill: var(--text) !important;
+            opacity: 0.85;
+        }
 
-    .editor ::deep .ql-picker-label,
-    .editor ::deep .ql-picker-item {
-        color: var(--text) !important;
-        opacity: 0.9;
-    }
+        .editor ::deep .ql-picker-label,
+        .editor ::deep .ql-picker-item {
+            color: var(--text) !important;
+            opacity: 0.9;
+        }
 
-    /* Buttons hover/active */
-    .editor ::deep .ql-toolbar button:hover,
-    .editor ::deep .ql-toolbar button:focus {
-        background: rgba(var(--primary-rgb), 0.10);
-        border-radius: 10px;
-    }
+        .editor ::deep .ql-toolbar button:hover,
+        .editor ::deep .ql-toolbar button:focus {
+            background: rgba(var(--primary-rgb), 0.10);
+            border-radius: 10px;
+        }
 
-    .editor ::deep .ql-toolbar button.ql-active {
-        background: rgba(var(--primary-rgb), 0.18);
-        border-radius: 10px;
-    }
+        .editor ::deep .ql-toolbar button.ql-active {
+            background: rgba(var(--primary-rgb), 0.18);
+            border-radius: 10px;
+        }
 
-    /* Dropdown panel background + text */
-    .editor ::deep .ql-picker-options {
-        background: rgba(var(--mud-palette-surface-rgb), 0.98) !important;
-        border: 1px solid var(--border) !important;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
-    }
+        .editor ::deep .ql-picker-options {
+            background: rgba(var(--mud-palette-surface-rgb), 0.98) !important;
+            border: 1px solid var(--border) !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+        }
 
-    .editor ::deep .ql-picker-options .ql-picker-item {
-        color: var(--text) !important;
-    }
+            .editor ::deep .ql-picker-options .ql-picker-item {
+                color: var(--text) !important;
+            }
 
-    .editor ::deep .ql-picker-options .ql-picker-item:hover,
-    .editor ::deep .ql-picker-options .ql-picker-item.ql-selected {
-        background: rgba(var(--primary-rgb), 0.12);
-    }
+                .editor ::deep .ql-picker-options .ql-picker-item:hover,
+                .editor ::deep .ql-picker-options .ql-picker-item.ql-selected {
+                    background: rgba(var(--primary-rgb), 0.12);
+                }
 
     .editorFooter {
         padding: 10px 14px;
@@ -573,9 +896,6 @@
         font-weight: 600;
     }
 
-    /* =========================
-         Modal (theme-aware)
-         ========================= */
     .modalOverlay {
         position: fixed;
         inset: 0;
@@ -698,15 +1018,15 @@
         min-width: 44px;
     }
 
-    .pinBtn:hover {
-        background: rgba(var(--mud-palette-surface-rgb), 0.90);
-    }
+        .pinBtn:hover {
+            background: rgba(var(--mud-palette-surface-rgb), 0.90);
+        }
 
-    .pinBtn svg {
-        width: 18px;
-        height: 18px;
-        stroke: var(--text);
-    }
+        .pinBtn svg {
+            width: 18px;
+            height: 18px;
+            stroke: var(--text);
+        }
 
     .pinHelp {
         font-size: 12px;
@@ -736,12 +1056,11 @@
         text-underline-offset: 3px;
     }
 
-    .dangerLink:disabled {
-        opacity: .55;
-        cursor: not-allowed;
-    }
+        .dangerLink:disabled {
+            opacity: .55;
+            cursor: not-allowed;
+        }
 
-    /* Premium Mood Selection UI */
     .moodSection {
         margin-top: 20px;
     }
@@ -762,7 +1081,6 @@
         font-size: 12px;
     }
 
-    /* CATEGORY CHIPS */
     .categoryChips {
         display: flex;
         gap: 10px;
@@ -770,32 +1088,6 @@
         flex-wrap: wrap;
     }
 
-    .categoryChip {
-        padding: 8px 20px;
-        border-radius: 20px;
-        border: 2px solid var(--border);
-        background: var(--card-bg);
-        color: var(--text);
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        outline: none;
-    }
-
-    .categoryChip:hover:not(.active) {
-        border-color: rgba(var(--primary-rgb), 0.4);
-        background: rgba(var(--primary-rgb), 0.05);
-    }
-
-    .categoryChip.active {
-        border-color: var(--primary);
-        background: var(--primary);
-        color: white;
-        box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.3);
-    }
-
-    /* PRIMARY MOOD GRID */
     .primaryMoodGrid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
@@ -821,23 +1113,756 @@
         overflow: hidden;
     }
 
-    .moodPillPrimary::before {
-        content: '';
-        position: absolute;
+        .moodPillPrimary:hover:not(.selected) {
+            border-color: rgba(var(--primary-rgb), 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(var(--primary-rgb), 0.15);
+        }
+
+        .moodPillPrimary.selected {
+            border-color: var(--primary);
+            background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.15) 0%, rgba(var(--primary-rgb), 0.25) 100%);
+            box-shadow: 0 8px 24px rgba(var(--primary-rgb), 0.3), 0 0 0 1px rgba(var(--primary-rgb), 0.5);
+            transform: scale(1.02);
+        }
+
+        .moodPillPrimary .moodEmoji {
+            font-size: 36px;
+            line-height: 1;
+        }
+
+        .moodPillPrimary .moodLabel {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+    .secondaryMoodGrid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 10px;
+        margin-top: 12px;
+    }
+
+    .moodPillSecondary {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 14px 12px;
+        border-radius: 14px;
+        border: 2px solid var(--border);
+        background: rgba(var(--mud-palette-surface-rgb), 0.75);
+        color: var(--text);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    }
+
+        .moodPillSecondary:hover:not(.selected):not(.disabled) {
+            border-color: rgba(var(--text-rgb), 0.3);
+            background: rgba(var(--mud-palette-surface-rgb), 0.95);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .moodPillSecondary.selected {
+            border-color: rgba(var(--primary-rgb), 0.6);
+            background: rgba(var(--primary-rgb), 0.12);
+            box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.2);
+        }
+
+        .moodPillSecondary.disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            filter: grayscale(0.5);
+        }
+
+        .moodPillSecondary .moodEmoji {
+            font-size: 28px;
+            line-height: 1;
+        }
+
+        .moodPillSecondary .moodLabel {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+    @@media (max-width: 600px) {
+        .primaryMoodGrid {
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            gap: 10px;
+        }
+
+        .moodPillPrimary {
+            padding: 16px 12px;
+        }
+
+            .moodPillPrimary .moodEmoji {
+                font-size: 32px;
+            }
+
+        .secondaryMoodGrid {
+            grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+            gap: 8px;
+        }
+    }
+</style>
+
+
+
+<style>
+    .tagSection { margin-top: 22px; }
+
+    .tagHeaderRow {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .tagOpenBtn {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        border-radius: 999px;
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        background: rgba(var(--mud-palette-surface-rgb), 0.75);
+        color: var(--text);
+        cursor: pointer;
+        font-weight: 800;
+        font-size: 13px;
+    }
+
+    .tagOpenBtn:hover { background: rgba(var(--mud-palette-surface-rgb), 0.90); }
+
+    .tagCount {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 24px;
+        height: 24px;
+        padding: 0 8px;
+        border-radius: 999px;
+        background: rgba(var(--primary-rgb), 0.18);
+        border: 1px solid rgba(var(--primary-rgb), 0.35);
+        font-weight: 900;
+    }
+
+    .tagSelectedWrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 12px;
+    }
+
+    .tagSelectedPill {
+        display: inline-flex;
+        align-items: center;
+        padding: 7px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(var(--primary-rgb), 0.30);
+        background: rgba(var(--primary-rgb), 0.10);
+        color: var(--text);
+        font-weight: 800;
+        font-size: 13px;
+    }
+
+    .tagModalCard { width: min(740px, 100%); }
+    .tagModalSection { margin-bottom: 18px; }
+
+    .tagModalTitleRow {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+
+    .tagModalTitle { font-weight: 900; letter-spacing: 0.02em; color: var(--text); }
+    .tagModalHint { font-size: 12px; color: var(--muted); font-weight: 700; }
+
+    .tagEmpty {
+        margin-top: 10px;
+        color: var(--muted);
+        font-weight: 650;
+        font-size: 13px;
+    }
+
+    .tagChips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+    .tagChip {
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: rgba(var(--mud-palette-surface-rgb), 0.75);
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: all .15s ease;
+    }
+
+    .tagChip:hover:not(.active) {
+        border-color: rgba(var(--primary-rgb), 0.35);
+        background: rgba(var(--primary-rgb), 0.06);
+    }
+
+    .tagChip.active {
+        border-color: rgba(var(--primary-rgb), 0.55);
+        background: rgba(var(--primary-rgb), 0.18);
+        box-shadow: 0 6px 18px rgba(var(--primary-rgb), 0.18);
+    }
+
+    .tagChip.custom { background: rgba(var(--primary-rgb), 0.10); }
+
+    /* ========== CATEGORY CHIPS (fix contrast + selected obvious) ========== */
+    .categoryChip {
+        padding: 8px 20px;
+        border-radius: 20px;
+        border: 2px solid var(--border);
+        background: rgba(var(--mud-palette-surface-rgb), 0.75);
+        color: var(--text);
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.18s ease;
+        outline: none;
+    }
+
+    .categoryChip:hover:not(.active) {
+        border-color: rgba(var(--primary-rgb), 0.35);
+        background: rgba(var(--primary-rgb), 0.06);
+    }
+
+    .categoryChip.active {
+        border-color: rgba(var(--primary-rgb), 0.65);
+        background: rgba(var(--primary-rgb), 0.18);
+        color: var(--text) !important; /* ✅ prevents white-on-white */
+        box-shadow: 0 8px 22px rgba(var(--primary-rgb), 0.18);
+        position: relative;
+    }
+
+    .categoryChip.active::after {
+        content: "✓";
+        margin-left: 10px;
+        font-weight: 900;
+    }
+
+    /* =========================
+         (YOUR EXISTING CSS BELOW)
+         ========================= */
+
+    /* Scope everything to this page to avoid affecting other pages */
+    .pageWrap {
+        /* Use MudBlazor theme variables (auto changes with IsDarkMode) */
+        --bg: var(--mud-palette-background);
+        --card: rgba(var(--mud-palette-surface-rgb), 0.92);
+        --card2: rgba(var(--mud-palette-surface-rgb), 0.98);
+        --border: var(--mud-palette-divider);
+        --text: var(--mud-palette-text-primary);
+        --muted: var(--mud-palette-text-secondary);
+        --muted2: rgba(var(--mud-palette-text-secondary-rgb), 0.75);
+        --primary: var(--mud-palette-primary);
+        --primary-rgb: var(--mud-palette-primary-rgb);
+        --danger: var(--mud-palette-error);
+        --danger-rgb: var(--mud-palette-error-rgb);
+        --shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+        --radius: 16px;
+        background: var(--bg);
+    }
+
+    /* Blur the whole UI when PIN modal is active */
+    .blurAll {
+        filter: blur(18px);
+        pointer-events: none;
+        user-select: none;
+        opacity: 0.18;
+    }
+
+    .page { color: var(--text); }
+
+    .toolbarCard {
+        background: var(--card2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 14px;
+        margin-bottom: 16px;
+    }
+
+    .toolbarRow {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .dateChip {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: rgba(var(--mud-palette-surface-rgb), 0.75);
+    }
+
+    .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, #a7f3d0, #22c55e);
+        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+        flex: 0 0 auto;
+    }
+
+    .dateText { display: grid; gap: 2px; line-height: 1.2; }
+
+    .dateLabel, .metaLabel {
+        font-size: 11px;
+        color: var(--muted2);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+    }
+
+    .dateValue, .metaValue { font-size: 13px; color: var(--text); }
+
+    .metaItem { display: grid; gap: 2px; margin-left: 10px; }
+
+    .metaDivider {
+        width: 1px;
+        height: 24px;
+        background: var(--border);
+        margin-left: 10px;
+    }
+
+    .btnGroup {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 12px;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        background: rgba(var(--mud-palette-surface-rgb), 0.75);
+        color: var(--text);
+        cursor: pointer;
+        transition: transform .04s ease, background .15s ease, opacity .15s ease;
+        user-select: none;
+        font-weight: 600;
+        font-size: 13px;
+    }
+
+    .btn:hover:not(:disabled) { background: rgba(var(--mud-palette-surface-rgb), 0.90); }
+    .btn:active:not(:disabled) { transform: translateY(1px); }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .btnIcon { font-size: 14px; line-height: 1; opacity: 0.9; }
+
+    .btnPrimary {
+        background: rgba(var(--primary-rgb), 0.14);
+        border-color: rgba(var(--primary-rgb), 0.30);
+    }
+
+    .btnPrimary:hover:not(:disabled) {
+        background: rgba(var(--primary-rgb), 0.20);
+        border-color: rgba(var(--primary-rgb), 0.40);
+    }
+
+    .btnDanger {
+        background: rgba(var(--danger-rgb), 0.12);
+        border-color: rgba(var(--danger-rgb), 0.28);
+    }
+
+    .btnDanger:hover:not(:disabled) {
+        background: rgba(var(--danger-rgb), 0.18);
+        border-color: rgba(var(--danger-rgb), 0.40);
+    }
+
+    .contentGrid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+
+    .editorCard {
+        background: var(--card2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+    }
+
+    .cardHeader {
+        padding: 14px 14px 10px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .cardTitle {
+        margin: 0;
+        font-size: 14px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text);
+        opacity: 0.85;
+    }
+
+    .hint {
+        font-size: 12px;
+        color: var(--muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 60%;
+    }
+
+    .tagChips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+    .tagSectionTitle {
+        font-size: 11px;
+        color: var(--muted2);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        margin-top: 12px;
+    }
+
+    .tagSelectedRow {
+        margin-top: 8px;
+        padding: 10px 12px;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        background: rgba(var(--mud-palette-surface-rgb), 0.62);
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+        .tagSelectedRow.empty {
+            align-items: center;
+        }
+
+    .tagSelectedLabel {
+        font-size: 11px;
+        color: var(--muted2);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-weight: 800;
+        padding-top: 2px;
+    }
+
+    .tagSelectedEmpty {
+        color: var(--muted);
+        font-weight: 700;
+    }
+
+    .tagSelectedList {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .tagSelectedPill {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 800;
+        border: 1px solid rgba(var(--primary-rgb), 0.35);
+        background: rgba(var(--primary-rgb), 0.14);
+        color: var(--text);
+    }
+
+    /* tag chips */
+    .tagChip {
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: rgba(var(--mud-palette-surface-rgb), 0.72);
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: transform .06s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;
+        user-select: none;
+    }
+
+        .tagChip:hover:not(.active) {
+            border-color: rgba(var(--primary-rgb), 0.35);
+            background: rgba(var(--primary-rgb), 0.06);
+        }
+
+        .tagChip:active {
+            transform: translateY(1px);
+        }
+
+        /* ✅ selected state - very obvious in both themes */
+        .tagChip.active {
+            border-color: rgba(var(--primary-rgb), 0.85);
+            background: rgba(var(--primary-rgb), 0.22);
+            box-shadow: 0 10px 22px rgba(var(--primary-rgb), 0.22);
+            outline: 2px solid rgba(var(--primary-rgb), 0.35);
+            outline-offset: 2px;
+        }
+
+        /* optional: custom tags slightly different when NOT selected */
+        .tagChip.custom {
+            background: rgba(var(--primary-rgb), 0.10);
+        }
+
+            .tagChip.custom.active {
+                background: rgba(var(--primary-rgb), 0.26);
+            }
+
+
+    .editor {
+        min-height: 420px;
+        background: rgba(var(--mud-palette-surface-rgb), 0.65);
+        color: var(--text);
+        font-size: 14px;
+        line-height: 1.55;
+    }
+
+    .editor ::deep .ql-container { font-family: inherit; font-size: 14px; line-height: 1.55; border: none; }
+    .editor ::deep .ql-editor { min-height: 380px; color: var(--text); }
+
+    .editor ::deep .ql-editor.ql-blank::before {
+        color: rgba(var(--mud-palette-text-secondary-rgb), 0.65);
+        content: attr(data-placeholder);
+    }
+
+    .editor ::deep .ql-toolbar {
+        border: none;
+        border-bottom: 1px solid var(--border);
+        background: rgba(var(--mud-palette-surface-rgb), 0.85);
+    }
+
+    .editor ::deep .ql-stroke { stroke: var(--text) !important; opacity: 0.85; }
+    .editor ::deep .ql-fill { fill: var(--text) !important; opacity: 0.85; }
+
+    .editor ::deep .ql-picker-label,
+    .editor ::deep .ql-picker-item { color: var(--text) !important; opacity: 0.9; }
+
+    .editor ::deep .ql-toolbar button:hover,
+    .editor ::deep .ql-toolbar button:focus { background: rgba(var(--primary-rgb), 0.10); border-radius: 10px; }
+
+    .editor ::deep .ql-toolbar button.ql-active { background: rgba(var(--primary-rgb), 0.18); border-radius: 10px; }
+
+    .editor ::deep .ql-picker-options {
+        background: rgba(var(--mud-palette-surface-rgb), 0.98) !important;
+        border: 1px solid var(--border) !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+    }
+
+    .editor ::deep .ql-picker-options .ql-picker-item { color: var(--text) !important; }
+    .editor ::deep .ql-picker-options .ql-picker-item:hover,
+    .editor ::deep .ql-picker-options .ql-picker-item.ql-selected { background: rgba(var(--primary-rgb), 0.12); }
+
+    .editorFooter {
+        padding: 10px 14px;
+        border-top: 1px solid var(--border);
+        background: rgba(var(--mud-palette-surface-rgb), 0.75);
+    }
+
+    .muted { color: var(--muted); font-size: 12px; font-weight: 600; }
+
+    .modalOverlay {
+        position: fixed;
         inset: 0;
-        background: linear-gradient(135deg, rgba(var(--primary-rgb), 0) 0%, rgba(var(--primary-rgb), 0.05) 100%);
-        opacity: 0;
-        transition: opacity 0.25s ease;
+        background: rgba(0, 0, 0, 0.55);
+        display: grid;
+        place-items: center;
+        z-index: 9999;
+        padding: 16px;
+    }
+
+    .modalCard {
+        width: min(520px, 100%);
+        max-height: 90vh;
+        background: rgba(var(--mud-palette-surface-rgb), 0.98);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        box-shadow: 0 18px 70px rgba(0, 0, 0, 0.35);
+        overflow: hidden;
+        color: var(--text);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .modalHeader {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 14px 10px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .modalTitle {
+        margin: 0;
+        font-size: 14px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text);
+        opacity: 0.9;
+    }
+
+    .modalX {
+        border: 1px solid var(--border);
+        background: rgba(var(--mud-palette-surface-rgb), 0.75);
+        color: var(--text);
+        border-radius: 10px;
+        padding: 6px 10px;
+        cursor: pointer;
+        font-weight: 800;
+    }
+
+    .modalBody {
+        padding: 14px;
+        overflow-y: auto;
+        flex: 1;
+        max-height: calc(90vh - 120px);
+    }
+
+    .modalField { display: grid; gap: 8px; }
+
+    .modalLabel {
+        font-size: 11px;
+        color: var(--muted2);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+    }
+
+    .modalInput {
+        padding: 12px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: rgba(var(--mud-palette-surface-rgb), 0.75);
+        color: var(--text);
+        outline: none;
+        font-weight: 650;
+    }
+
+    .modalFooter {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        padding: 12px 14px 14px;
+        border-top: 1px solid var(--border);
+        background: rgba(var(--mud-palette-surface-rgb), 0.75);
+    }
+
+    .btnGhost { background: transparent; }
+
+    .pinField { margin-top: 12px; }
+
+    .pinRow { display: flex; gap: 10px; align-items: center; }
+
+    .pinInput { flex: 1; letter-spacing: 0.18em; text-transform: uppercase; }
+
+    .pinBtn {
+        border: 1px solid var(--border);
+        background: rgba(var(--mud-palette-surface-rgb), 0.75);
+        color: var(--text);
+        border-radius: 12px;
+        padding: 10px 12px;
+        cursor: pointer;
+        font-weight: 800;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 44px;
+    }
+
+    .pinBtn:hover { background: rgba(var(--mud-palette-surface-rgb), 0.90); }
+
+    .pinBtn svg { width: 18px; height: 18px; stroke: var(--text); }
+
+    .pinHelp { font-size: 12px; color: var(--muted); margin-top: 8px; }
+
+    .pinError { margin-top: 6px; font-size: 12px; color: var(--danger); font-weight: 700; }
+
+    .dangerLinkRow { margin-top: 12px; }
+
+    .dangerLink {
+        background: transparent;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        color: var(--danger);
+        font-weight: 800;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+
+    .dangerLink:disabled { opacity: .55; cursor: not-allowed; }
+
+    .moodSection { margin-top: 20px; }
+
+    .moodSectionLabel {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 14px;
+        display: block;
+        text-transform: none;
+        letter-spacing: 0;
+    }
+
+    .moodOptional { font-weight: 500; color: var(--muted); font-size: 12px; }
+
+    .categoryChips { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+
+    .primaryMoodGrid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+    }
+
+    .moodPillPrimary {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 20px 16px;
+        border-radius: 16px;
+        border: 2.5px solid var(--border);
+        background: rgba(var(--mud-palette-surface-rgb), 0.85);
+        color: var(--text);
+        cursor: pointer;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        position: relative;
+        overflow: hidden;
     }
 
     .moodPillPrimary:hover:not(.selected) {
         border-color: rgba(var(--primary-rgb), 0.4);
         transform: translateY(-2px);
         box-shadow: 0 6px 20px rgba(var(--primary-rgb), 0.15);
-    }
-
-    .moodPillPrimary:hover:not(.selected)::before {
-        opacity: 1;
     }
 
     .moodPillPrimary.selected {
@@ -847,24 +1872,9 @@
         transform: scale(1.02);
     }
 
-    .moodPillPrimary .moodEmoji {
-        font-size: 36px;
-        line-height: 1;
-        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
-    }
+    .moodPillPrimary .moodEmoji { font-size: 36px; line-height: 1; }
+    .moodPillPrimary .moodLabel { font-size: 14px; font-weight: 700; color: var(--text); }
 
-    .moodPillPrimary .moodLabel {
-        font-size: 14px;
-        font-weight: 700;
-        color: var(--text);
-        letter-spacing: 0.02em;
-    }
-
-    .moodPillPrimary.selected .moodLabel {
-        color: var(--primary);
-    }
-
-    /* SECONDARY MOOD GRID */
     .secondaryMoodGrid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
@@ -901,47 +1911,14 @@
         box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.2);
     }
 
-    .moodPillSecondary.disabled {
-        opacity: 0.35;
-        cursor: not-allowed;
-        filter: grayscale(0.5);
-    }
+    .moodPillSecondary.disabled { opacity: 0.35; cursor: not-allowed; filter: grayscale(0.5); }
+    .moodPillSecondary .moodEmoji { font-size: 28px; line-height: 1; }
+    .moodPillSecondary .moodLabel { font-size: 12px; font-weight: 600; color: var(--text); }
 
-    .moodPillSecondary .moodEmoji {
-        font-size: 28px;
-        line-height: 1;
-        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.08));
-    }
-
-    .moodPillSecondary .moodLabel {
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--text);
-    }
-
-    .moodPillSecondary.selected .moodLabel {
-        color: var(--primary);
-        font-weight: 700;
-    }
-
-    /* Responsive adjustments */
     @@media (max-width: 600px) {
-        .primaryMoodGrid {
-            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-            gap: 10px;
-        }
-
-        .moodPillPrimary {
-            padding: 16px 12px;
-        }
-
-        .moodPillPrimary .moodEmoji {
-            font-size: 32px;
-        }
-
-        .secondaryMoodGrid {
-            grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-            gap: 8px;
-        }
+        .primaryMoodGrid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+        .moodPillPrimary { padding: 16px 12px; }
+        .moodPillPrimary .moodEmoji { font-size: 32px; }
+        .secondaryMoodGrid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; }
     }
 </style>
