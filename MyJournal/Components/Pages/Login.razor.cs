@@ -14,6 +14,11 @@ public partial class Login
 
     private bool _isBusy;
     private bool _invalidCredentials;
+    
+    // PIN visibility toggle
+    private bool _pinVisible = false;
+    private InputType _pinInputType => _pinVisible ? InputType.Text : InputType.Password;
+    private string _pinVisibilityIcon => _pinVisible ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility;
 
     protected override async Task OnInitializedAsync()
     {
@@ -23,6 +28,11 @@ public partial class Login
         {
             NavManager.NavigateTo("/first-time-setup", replace: true);
         }
+    }
+
+    private void TogglePinVisibility()
+    {
+        _pinVisible = !_pinVisible;
     }
 
     private async Task HandleLogin()

@@ -4,56 +4,231 @@
 @inject MyJournal.Services.AppState AppState
 @inject NavigationManager NavManager
 
-<MudGrid Justify="Justify.Center">
-    <MudItem xs="12" sm="6" md="4">
-        <MudPaper Class="pa-6" Elevation="6">
+<div class="login-page">
+    <div class="login-card">
+        
+        <!-- App Icon & Title -->
+        <div class="app-header">
+            <div class="app-icon">
+                <MudIcon Icon="@Icons.Material.Filled.Book" Size="Size.Medium" Color="Color.Primary" />
+            </div>
+            <MudText Typo="Typo.subtitle1" Class="app-title">My Journal</MudText>
+        </div>
 
-            <MudText Typo="Typo.h5" Align="Align.Center" Class="mb-4">
-                Login
-            </MudText>
+        <!-- Welcome Heading -->
+        <MudText Typo="Typo.h4" Class="welcome-heading">Welcome Back</MudText>
 
-            <MudForm @ref="_form" Spacing="6">
+        <MudForm @ref="_form" Class="login-form">
 
+            <!-- Username or Email Input -->
+            <div class="input-group">
+                <label class="input-label">Username or Email</label>
                 <MudTextField T="string"
-                              Label="Username"
                               @bind-Value="_username"
                               Required="true"
-                              RequiredError="Username is required" />
+                              RequiredError="Username is required"
+                              Variant="Variant.Outlined"
+                              Class="custom-input"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Person" />
+            </div>
 
+            <!-- PIN Input with Toggle Visibility -->
+            <div class="input-group">
+                <label class="input-label">PIN</label>
                 <MudTextField T="string"
-                              Label="4-Digit PIN"
                               @bind-Value="_pin"
-                              InputType="InputType.Password"
+                              InputType="@_pinInputType"
                               Required="true"
                               RequiredError="PIN is required"
-                              MaxLength="4" />
+                              MaxLength="4"
+                              Variant="Variant.Outlined"
+                              Class="custom-input"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Lock"
+                              OnAdornmentClick="TogglePinVisibility"
+                              AdornmentAriaLabel="Toggle PIN visibility">
+                    <end>
+                        <MudIconButton Icon="@_pinVisibilityIcon" 
+                                       OnClick="TogglePinVisibility" 
+                                       Edge="Edge.End"
+                                       Size="Size.Small"
+                                       aria-label="Toggle PIN visibility" />
+                    </end>
+                </MudTextField>
+            </div>
 
-                <MudButton Variant="Variant.Filled"
-                           Color="Color.Primary"
-                           FullWidth="true"
-                           Class="mt-4"
-                           Disabled="@_isBusy"
-                           OnClick="HandleLogin">
-                    Login
-                </MudButton>
+            @if (_invalidCredentials)
+            {
+                <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="error-alert" Dense="true">
+                    Invalid username or PIN
+                </MudAlert>
+            }
 
-                <MudButton Variant="Variant.Text"
-                           Color="Color.Primary"
-                           FullWidth="true"
-                           Size="Size.Small"
-                           OnClick="@(() => NavManager.NavigateTo("/forgot-password"))">
-                    Forgot Password?
-                </MudButton>
-
-                @if (_invalidCredentials)
+            <!-- Login Button -->
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       FullWidth="true"
+                       Class="login-button"
+                       Disabled="@_isBusy"
+                       OnClick="HandleLogin">
+                @if (_isBusy)
                 {
-                    <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mt-4">
-                        Invalid username or PIN
-                    </MudAlert>
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" />
                 }
+                else
+                {
+                    <text>Login</text>
+                }
+            </MudButton>
 
-            </MudForm>
+            <!-- Forgot Password Link -->
+            <MudButton Variant="Variant.Text"
+                       Color="Color.Primary"
+                       FullWidth="true"
+                       Size="Size.Small"
+                       Class="forgot-link"
+                       OnClick="@(() => NavManager.NavigateTo("/forgot-password"))">
+                Forgot Password?
+            </MudButton>
 
-        </MudPaper>
-    </MudItem>
-</MudGrid>
+        </MudForm>
+
+    </div>
+</div>
+
+<style>
+    .login-page {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        background: var(--mud-palette-background);
+        padding: 20px;
+    }
+
+    .login-card {
+        background: var(--mud-palette-surface);
+        border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+        padding: 40px 32px;
+        width: 100%;
+        max-width: 400px;
+    }
+
+    .app-header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 24px;
+    }
+
+    .app-icon {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--mud-palette-primary);
+        border-radius: 8px;
+        padding: 4px;
+    }
+
+    .app-icon .mud-icon-root {
+        color: white !important;
+    }
+
+    .app-title {
+        color: var(--mud-palette-primary);
+        font-weight: 500;
+        margin: 0;
+    }
+
+    .welcome-heading {
+        text-align: center;
+        font-weight: 700;
+        margin-bottom: 32px;
+        color: var(--mud-palette-text-primary);
+    }
+
+    .login-form {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .input-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .input-label {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--mud-palette-text-primary);
+        margin-bottom: 4px;
+    }
+
+    .custom-input {
+        width: 100%;
+    }
+
+    .custom-input .mud-input-outlined {
+        border-radius: 8px;
+    }
+
+    .custom-input .mud-input-root {
+        padding: 12px 14px;
+    }
+
+    .error-alert {
+        margin-top: 4px;
+        border-radius: 8px;
+    }
+
+    .login-button {
+        margin-top: 8px;
+        padding: 14px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 16px;
+        text-transform: none;
+        box-shadow: 0 4px 12px rgba(33, 150, 243, 0.24);
+        transition: all 0.2s ease;
+    }
+
+    .login-button:hover:not(:disabled) {
+        box-shadow: 0 6px 16px rgba(33, 150, 243, 0.32);
+        transform: translateY(-1px);
+    }
+
+    .login-button:active:not(:disabled) {
+        transform: translateY(0);
+    }
+
+    .forgot-link {
+        margin-top: 8px;
+        text-transform: none;
+        font-size: 14px;
+    }
+
+    /* Dark mode enhancements */
+    @@media (prefers-color-scheme: dark) {
+        .login-card {
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+    }
+
+    /* Responsive adjustments */
+    @@media (max-width: 600px) {
+        .login-card {
+            padding: 32px 24px;
+        }
+
+        .welcome-heading {
+            font-size: 1.75rem;
+        }
+    }
+</style>
