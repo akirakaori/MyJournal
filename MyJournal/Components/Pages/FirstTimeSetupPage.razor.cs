@@ -16,6 +16,15 @@ public partial class FirstTimeSetupPage
 
     private bool _isBusy;
     private string _errorMessage = string.Empty;
+    
+    // PIN visibility toggles
+    private bool _pinVisible = false;
+    private InputType _pinInputType => _pinVisible ? InputType.Text : InputType.Password;
+    private string _pinVisibilityIcon => _pinVisible ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility;
+    
+    private bool _confirmPinVisible = false;
+    private InputType _confirmPinInputType => _confirmPinVisible ? InputType.Text : InputType.Password;
+    private string _confirmPinVisibilityIcon => _confirmPinVisible ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility;
 
     protected override async Task OnInitializedAsync()
     {
@@ -25,6 +34,16 @@ public partial class FirstTimeSetupPage
         {
             NavManager.NavigateTo("/login", replace: true);
         }
+    }
+
+    private void TogglePinVisibility()
+    {
+        _pinVisible = !_pinVisible;
+    }
+
+    private void ToggleConfirmPinVisibility()
+    {
+        _confirmPinVisible = !_confirmPinVisible;
     }
 
     private string? ValidateEmail(string email)
