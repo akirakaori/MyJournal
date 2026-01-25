@@ -75,10 +75,10 @@ public class JournalDatabases
 
     private static string Key(DateTime date) => date.Date.ToString("yyyy-MM-dd");
 
-    public Task<JournalEntries?> GetByDateAsync(DateTime date)
+    public async Task<JournalEntries?> GetByDateAsync(DateTime date)
     {
         var k = Key(date);
-        return _db.Table<JournalEntries>()
+        return await _db.Table<JournalEntries>()
                   .Where(x => x.DateKey == k)
                   .FirstOrDefaultAsync();
     }

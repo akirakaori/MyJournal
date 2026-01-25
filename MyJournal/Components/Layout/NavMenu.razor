@@ -3,11 +3,17 @@
 
 @implements IDisposable
 
-<div class="top-row ps-3 navbar">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">My Journal</a>
+@if (AppState.IsLoggedIn)
+{
+    <div class="top-row ps-3 navbar">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="">
+                <img src="./images/myjournal-logo.jpg" alt="My Journal" class="navbar-logo" />
+                <span>My Journal</span>
+            </a>
+        </div>
     </div>
-</div>
+}
 
 <input type="checkbox" title="Navigation menu" class="navbar-toggler" />
 

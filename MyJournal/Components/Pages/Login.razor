@@ -9,9 +9,7 @@
         
         <!-- App Icon & Title -->
         <div class="app-header">
-            <div class="app-icon">
-                <MudIcon Icon="@Icons.Material.Filled.Book" Size="Size.Medium" Color="Color.Primary" />
-            </div>
+            <img src="./images/myjournal-logo.jpg" alt="My Journal" class="app-logo" />
             <MudText Typo="Typo.subtitle1" Class="app-title">My Journal</MudText>
         </div>
 
@@ -120,23 +118,14 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
+        gap: 12px;
         margin-bottom: 24px;
     }
 
-    .app-icon {
-        width: 32px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: var(--mud-palette-primary);
-        border-radius: 8px;
-        padding: 4px;
-    }
-
-    .app-icon .mud-icon-root {
-        color: white !important;
+    .app-logo {
+        height: 36px;
+        width: auto;
+        object-fit: contain;
     }
 
     .app-title {
