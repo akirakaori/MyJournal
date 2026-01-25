@@ -3,30 +3,59 @@
 @inject NavigationManager NavManager
 @inject MyJournal.Services.AppState AppState
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="py-4">
-
-    <MudPaper Elevation="2" Class="pa-6 mb-4 mud-theme-surface">
-        <MudText Typo="Typo.h4" Class="mb-2">MyJournal.exe</MudText>
-        <MudText Typo="Typo.body1">
-            A secure daily journal with moods, tags, streaks, analytics, and PDF export — stored locally in SQLite.
-        </MudText>
-    </MudPaper>
-
-    @if (!AppState.IsLoggedIn)
-    {
-        <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Class="mb-4">
-            <div class="d-flex align-center justify-space-between flex-wrap gap-2" style="width:100%">
-                <div>
-                    <b>Locked.</b> Please log in to view and write your journal.
+@if (!AppState.IsLoggedIn)
+{
+    <!-- Hero Landing Page -->
+    <div class="hero-container">
+        <div class="hero-content">
+            
+            <!-- Left Side: Text & CTA -->
+            <div class="hero-text-section">
+                <div class="hero-logo">
+                    <img src="./images/myjournal-logo.jpg" alt="MyJournal" />
+                    <span>MyJournal</span>
                 </div>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GoLogin">
-                    Login
+                
+                <h3 class="hero-headline">
+                    Your thoughts🧠
+                    Your feelings✍️ <br />
+                    <span class="gradient-text">One place</span> — MyJournal
+                </h3>
+                
+                <p class="hero-description">
+                    Access your journal from any browser and keep writing wherever you are!.<br>
+                    A secure daily journal with moods, tags, streaks, analytics, and PDF export.
+                </p>
+                
+                <MudButton Class="hero-login-btn" 
+                           Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           Size="Size.Large"
+                           OnClick="GoLogin">
+                    Get Started
                 </MudButton>
             </div>
-        </MudAlert>
-    }
-    else
-    {
+            
+            <!-- Right Side: Illustration -->
+            <div class="hero-illustration">
+                <img src="./images/myjournal-hero.jpg" alt="MyJournal App Preview" />
+            </div>
+            
+        </div>
+    </div>
+}
+else
+{
+    <!-- Logged In View -->
+    <MudContainer MaxWidth="MaxWidth.Large" Class="py-4">
+
+        <MudPaper Elevation="2" Class="pa-6 mb-4 mud-theme-surface">
+            <MudText Typo="Typo.h4" Class="mb-2">MyJournal.exe</MudText>
+            <MudText Typo="Typo.body1">
+                A secure daily journal with moods, tags, streaks, analytics, and PDF export — stored locally in SQLite.
+            </MudText>
+        </MudPaper>
+
         <MudGrid Spacing="3">
 
             <MudItem xs="12" md="6" lg="4">
@@ -90,4 +119,5 @@
 
         </MudGrid>
     }
-</MudContainer>
+    </MudContainer>
+}
