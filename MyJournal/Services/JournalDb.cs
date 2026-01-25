@@ -17,6 +17,7 @@ public class JournalDatabases
     {
         await _db.CreateTableAsync<JournalEntries>();
         await MigrateAddMoodColumnsAsync();
+        await MigrateAddTagColumnsAsync();
     }
 
     private async Task MigrateAddMoodColumnsAsync()
@@ -40,6 +41,30 @@ public class JournalDatabases
         {
             // Log or handle migration error
             System.Diagnostics.Debug.WriteLine($"Migration error: {ex.Message}");
+        }
+    }
+
+    private async Task MigrateAddTagColumnsAsync()
+    {
+        try
+        {
+            var tableInfo = await _db.QueryAsync<TableInfoResult>("PRAGMA table_info(JournalEntries)");
+            var columnNames = tableInfo.Select(x => x.name).ToList();
+
+            if (!columnNames.Contains("TagsCsv"))
+            {
+                await _db.ExecuteAsync("ALTER TABLE JournalEntries ADD COLUMN TagsCsv TEXT");
+            }
+
+            if (!columnNames.Contains("PrimaryCategory"))
+            {
+                await _db.ExecuteAsync("ALTER TABLE JournalEntries ADD COLUMN PrimaryCategory TEXT");
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log or handle migration error
+            System.Diagnostics.Debug.WriteLine($"Tag column migration error: {ex.Message}");
         }
     }
 

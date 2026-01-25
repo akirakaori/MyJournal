@@ -90,6 +90,7 @@
                             </th>
 
                             <th>Mood</th>
+                            <th>Tags</th>
                             <th>PIN Protected</th>
                             <th>Content Preview</th>
                             <th style="text-align:right;">Actions</th>
@@ -122,6 +123,21 @@
                                     else
                                     {
                                         <span class="mood-none">-</span>
+                                    }
+                                </td>
+
+                                <td class="td-tags">
+                                    @if (!string.IsNullOrWhiteSpace(e.TagsCsv))
+                                    {
+                                        var tags = e.TagsCsv.Split(',', StringSplitOptions.RemoveEmptyEntries);
+                                        foreach (var tag in tags)
+                                        {
+                                            <span class="tag-pill">@tag.Trim()</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="tag-none">-</span>
                                     }
                                 </td>
 
@@ -519,9 +535,8 @@
 
     /* Mood badges */
     .td-mood {
-        display: flex;
-        gap: 6px;
-        flex-wrap: wrap;
+        min-width: 120px;
+        vertical-align: top;
     }
 
     .mood-badge {
@@ -531,6 +546,8 @@
         font-size: 11px;
         font-weight: 700;
         white-space: nowrap;
+        margin-right: 4px;
+        margin-bottom: 4px;
     }
 
         .mood-badge.primary {
@@ -546,6 +563,32 @@
         }
 
     .mood-none {
+        color: rgba(var(--muted-rgb), 0.6);
+        font-style: italic;
+    }
+
+    /* Tags */
+    .td-tags {
+        min-width: 120px;
+        max-width: 250px;
+        vertical-align: top;
+    }
+
+    .tag-pill {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        white-space: nowrap;
+        background: rgba(var(--text-rgb), 0.06);
+        border: 1px solid rgba(var(--text-rgb), 0.12);
+        color: var(--text);
+        margin-right: 4px;
+        margin-bottom: 4px;
+    }
+
+    .tag-none {
         color: rgba(var(--muted-rgb), 0.6);
         font-style: italic;
     }
