@@ -1,25 +1,18 @@
 @page "/first-time-setup"
 @using MudBlazor
-@inject MyJournal.Services.AuthService AuthService
-@inject NavigationManager NavManager
 
 <div class="register-page">
     <div class="register-card">
-        
+
         <!-- App Icon & Title -->
         <div class="app-header">
-            <div class="app-icon">
-                <MudIcon Icon="@Icons.Material.Filled.Book" Size="Size.Medium" Color="Color.Primary" />
-            </div>
+            <img src="./images/myjournal-logo.jpg" alt="My Journal" class="app-logo" />
             <MudText Typo="Typo.subtitle1" Class="app-title">My Journal</MudText>
         </div>
-
         <!-- Welcome Heading -->
         <MudText Typo="Typo.h4" Class="welcome-heading">Welcome to MyJournal</MudText>
         <MudText Typo="Typo.body2" Class="subtitle-text">Let's set up your account</MudText>
-
         <MudForm @ref="_form" Class="register-form">
-
             <!-- Username Input -->
             <div class="input-group">
                 <label class="input-label">Username</label>
@@ -32,7 +25,6 @@
                               Adornment="Adornment.Start"
                               AdornmentIcon="@Icons.Material.Filled.Person" />
             </div>
-
             <!-- Email Input -->
             <div class="input-group">
                 <label class="input-label">Email</label>
@@ -47,7 +39,6 @@
                               Adornment="Adornment.Start"
                               AdornmentIcon="@Icons.Material.Filled.Email" />
             </div>
-
             <!-- PIN Input with Toggle Visibility -->
             <div class="input-group">
                 <label class="input-label">4-Digit PIN</label>
@@ -64,15 +55,14 @@
                               Adornment="Adornment.Start"
                               AdornmentIcon="@Icons.Material.Filled.Lock">
                     <end>
-                        <MudIconButton Icon="@_pinVisibilityIcon" 
-                                       OnClick="TogglePinVisibility" 
+                        <MudIconButton Icon="@_pinVisibilityIcon"
+                                       OnClick="TogglePinVisibility"
                                        Edge="Edge.End"
                                        Size="Size.Small"
                                        aria-label="Toggle PIN visibility" />
                     </end>
                 </MudTextField>
             </div>
-
             <!-- Confirm PIN Input with Toggle Visibility -->
             <div class="input-group">
                 <label class="input-label">Confirm PIN</label>
@@ -88,22 +78,20 @@
                               Adornment="Adornment.Start"
                               AdornmentIcon="@Icons.Material.Filled.Lock">
                     <end>
-                        <MudIconButton Icon="@_confirmPinVisibilityIcon" 
-                                       OnClick="ToggleConfirmPinVisibility" 
+                        <MudIconButton Icon="@_confirmPinVisibilityIcon"
+                                       OnClick="ToggleConfirmPinVisibility"
                                        Edge="Edge.End"
                                        Size="Size.Small"
                                        aria-label="Toggle confirm PIN visibility" />
                     </end>
                 </MudTextField>
             </div>
-
             @if (!string.IsNullOrEmpty(_errorMessage))
             {
                 <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="error-alert" Dense="true">
                     @_errorMessage
                 </MudAlert>
             }
-
             <!-- Create Account Button -->
             <MudButton Variant="Variant.Filled"
                        Color="Color.Primary"
@@ -121,11 +109,10 @@
                     <text>Create Account</text>
                 }
             </MudButton>
-
         </MudForm>
-
     </div>
 </div>
+
 
 <style>
     .register-page {
@@ -150,23 +137,14 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
+        gap: 12px;
         margin-bottom: 24px;
     }
 
-    .app-icon {
-        width: 32px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: var(--mud-palette-primary);
-        border-radius: 8px;
-        padding: 4px;
-    }
-
-    .app-icon .mud-icon-root {
-        color: white !important;
+    .app-logo {
+        height: 36px;
+        width: auto;
+        object-fit: contain;
     }
 
     .app-title {
@@ -181,6 +159,8 @@
         margin-bottom: 8px;
         color: var(--mud-palette-text-primary);
     }
+
+
 
     .subtitle-text {
         text-align: center;
@@ -211,13 +191,13 @@
         width: 100%;
     }
 
-    .custom-input .mud-input-outlined {
-        border-radius: 8px;
-    }
+        .custom-input .mud-input-outlined {
+            border-radius: 8px;
+        }
 
-    .custom-input .mud-input-root {
-        padding: 12px 14px;
-    }
+        .custom-input .mud-input-root {
+            padding: 12px 14px;
+        }
 
     .error-alert {
         margin-top: 4px;
@@ -235,14 +215,14 @@
         transition: all 0.2s ease;
     }
 
-    .register-button:hover:not(:disabled) {
-        box-shadow: 0 6px 16px rgba(33, 150, 243, 0.32);
-        transform: translateY(-1px);
-    }
+        .register-button:hover:not(:disabled) {
+            box-shadow: 0 6px 16px rgba(33, 150, 243, 0.32);
+            transform: translateY(-1px);
+        }
 
-    .register-button:active:not(:disabled) {
-        transform: translateY(0);
-    }
+        .register-button:active:not(:disabled) {
+            transform: translateY(0);
+        }
 
     /* Dark mode enhancements */
     @@media (prefers-color-scheme: dark) {

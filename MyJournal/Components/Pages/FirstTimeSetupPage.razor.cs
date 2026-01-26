@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Components;
+﻿using Microsoft.AspNetCore.Components;
 using MudBlazor;
 using MyJournal.Services;
 using System.Text.RegularExpressions;
@@ -7,28 +7,33 @@ namespace MyJournal.Components.Pages;
 
 public partial class FirstTimeSetupPage
 {
-    private MudForm? _form;
+    // ────────────────────────────────────────────────
+    // NO [Inject] here for _form – it's a component reference
+    private MudForm? _form;   // ← just a private field
+    // ────────────────────────────────────────────────
+
+    [Inject] private NavigationManager NavManager { get; set; } = null!;
+    [Inject] private AuthService AuthService { get; set; } = null!;
+    [Inject] private AppState AppState { get; set; } = null!;
 
     private string _username = string.Empty;
     private string _email = string.Empty;
     private string _pin = string.Empty;
     private string _confirmPin = string.Empty;
-
     private bool _isBusy;
     private string _errorMessage = string.Empty;
-    
+
     // PIN visibility toggles
     private bool _pinVisible = false;
     private InputType _pinInputType => _pinVisible ? InputType.Text : InputType.Password;
     private string _pinVisibilityIcon => _pinVisible ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility;
-    
+
     private bool _confirmPinVisible = false;
     private InputType _confirmPinInputType => _confirmPinVisible ? InputType.Text : InputType.Password;
     private string _confirmPinVisibilityIcon => _confirmPinVisible ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility;
 
     protected override async Task OnInitializedAsync()
     {
-        // Redirect to login if user already exists (single-user app)
         var userExists = await AuthService.UserExistsAsync();
         if (userExists)
         {
@@ -50,7 +55,6 @@ public partial class FirstTimeSetupPage
     {
         if (string.IsNullOrWhiteSpace(email))
             return "Email is required";
-
         var emailRegex = new Regex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$");
         return emailRegex.IsMatch(email) ? null : "Invalid email format";
     }
@@ -59,13 +63,10 @@ public partial class FirstTimeSetupPage
     {
         if (string.IsNullOrWhiteSpace(pin))
             return "PIN is required";
-
         if (pin.Length != 4)
             return "PIN must be exactly 4 digits";
-
         if (!pin.All(char.IsDigit))
             return "PIN must contain only numbers";
-
         return null;
     }
 
@@ -73,10 +74,8 @@ public partial class FirstTimeSetupPage
     {
         if (string.IsNullOrWhiteSpace(confirmPin))
             return "Please confirm your PIN";
-
         if (confirmPin != _pin)
             return "PINs do not match";
-
         return null;
     }
 
@@ -85,6 +84,7 @@ public partial class FirstTimeSetupPage
         _errorMessage = string.Empty;
         _isBusy = true;
 
+        // This line is safe – _form is set by @ref when the component renders
         await _form!.Validate();
 
         if (!_form.IsValid)
@@ -94,10 +94,10 @@ public partial class FirstTimeSetupPage
         }
 
         var success = await AuthService.RegisterUserAsync(_username, _email, _pin);
-
         if (success)
         {
-            NavManager.NavigateTo("/login", replace: true);
+            AppState.Login(_username);
+            NavManager.NavigateTo("/dashboard", forceLoad: true);
         }
         else
         {

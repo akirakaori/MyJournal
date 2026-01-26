@@ -1,9 +1,5 @@
 ﻿@page "/"
 @using MudBlazor
-@* @inject NavigationManager NavManager
-@inject MyJournal.Services.AppState AppState *@
-
-@implements IDisposable
 
 @if (!AppState.IsLoggedIn)
 {
@@ -11,49 +7,54 @@
     <div class="hero-wrap">
         <MudPaper Class="hero-card" Elevation="0" Rounded="true">
             <div class="hero-grid">
-
                 <!-- Left -->
                 <div class="hero-left">
                     <div class="hero-logo">
                         <img src="./images/myjournal-logo.jpg" alt="MyJournal" />
                         <span>MyJournal</span>
                     </div>
-
                     <h3 class="hero-title">
                         Your thoughts🧠 <br />
                         Your feelings✍️ <br />
                         <span class="hero-gradient">One place</span> — MyJournal
                     </h3>
-
                     <p class="hero-subtitle">
                         Access your journal from any browser and keep writing wherever you are.
                         <br />
                         A secure daily journal with moods, tags, streaks, analytics, and PDF export.
                     </p>
-
                     <div class="hero-actions">
-                        <MudButton Class="hero-btn"
-                                   Variant="Variant.Filled"
-                                   Color="Color.Primary"
-                                   Size="Size.Large"
-                                   OnClick="GoLogin">
-                            Get Started
-                        </MudButton>
-
-                        <MudButton Variant="Variant.Outlined"
-                                   Color="Color.Primary"
-                                   Size="Size.Large"
-                                   OnClick="GoLogin">
-                            Login
-                        </MudButton>
+                        @if (_userExists == true)
+                        {
+                            <MudButton Class="hero-btn"
+                                       Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       Size="Size.Large"
+                                       OnClick="GoLogin">
+                                Login
+                            </MudButton>
+                        }
+                        else if (_userExists == false)
+                        {
+                            <MudButton Class="hero-btn"
+                                       Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       Size="Size.Large"
+                                       OnClick="GoRegister">
+                                Register
+                            </MudButton>
+                        }
+                        else
+                        {
+                            <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+                            <span class="ms-3 text-muted">Checking...</span>
+                        }
                     </div>
                 </div>
-
                 <!-- Right -->
                 <div class="hero-right">
                     <img src="./images/myjournal-hero.jpg" alt="MyJournal App Preview" />
                 </div>
-
             </div>
         </MudPaper>
     </div>
@@ -62,15 +63,13 @@ else
 {
     <!-- Logged In View -->
     <MudContainer Class="py-4">
-
         <MudPaper Elevation="0" Rounded="true" Class="home-header pa-6 mb-4">
             <MudText Typo="Typo.h4" Class="mb-2">MyJournal.exe</MudText>
             <MudText Typo="Typo.body1">
                 A secure daily journal with moods, tags, streaks, analytics, and PDF export — stored locally in SQLite.
             </MudText>
         </MudPaper>
-        @* callling the streak component *@
-        <StreakSummary /> 
+        <StreakSummary />
     </MudContainer>
 }
 
@@ -135,6 +134,7 @@ else
         max-width: 58ch;
     }
 
+
     .hero-actions {
         display: flex;
         gap: 12px;
@@ -162,7 +162,6 @@ else
         background: var(--mud-palette-surface);
     }
 
-    /* Responsive */
     @@media (max-width: 900px) {
         .hero-grid {
             grid-template-columns: 1fr;
