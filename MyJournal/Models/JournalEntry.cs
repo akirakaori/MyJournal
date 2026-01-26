@@ -11,6 +11,10 @@ public class JournalEntries
     public string DateKey { get; set; } = "";
 
     public string Title { get; set; } = "";
+    
+    /// <summary>
+    /// Journal content (stores Quill HTML with formatting)
+    /// </summary>
     public string Content { get; set; } = "";
 
     public bool HasPin { get; set; } = false;

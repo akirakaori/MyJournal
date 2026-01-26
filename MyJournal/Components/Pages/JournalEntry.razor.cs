@@ -402,6 +402,7 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
             IsLocked = false;
             ShowUnlockModal = false;
 
+            // Load HTML content for Quill editor
             Content = _current.Content ?? "";
             CurrentTitle = _current.Title ?? "";
             TitleInput = CurrentTitle;
@@ -415,6 +416,25 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
         {
             IsBusy = false;
         }
+    }
+
+    /// <summary>
+    /// Converts plain text to basic HTML for Quill editor
+    /// </summary>
+    private string ConvertPlainTextToHtml(string plainText)
+    {
+        if (string.IsNullOrWhiteSpace(plainText))
+            return "<p><br></p>";
+
+        // Escape HTML entities for safety
+        plainText = WebUtility.HtmlEncode(plainText);
+
+        // Convert line breaks to paragraphs
+        var lines = plainText.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+        var html = string.Join("", lines.Select(line => 
+            string.IsNullOrWhiteSpace(line) ? "<p><br></p>" : $"<p>{line}</p>"));
+
+        return html;
     }
 
     [JSInvokable]
@@ -618,7 +638,13 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
             _current = await Db.GetByDateAsync(SelectedDate);
 
             CurrentTitle = _current?.Title ?? title;
-            Content = _current?.Content ?? Content;
+            
+            // After save, keep the HTML content for display
+            if (_current != null)
+            {
+                Content = _current.Content ?? "";
+            }
+            
             CreatedAt = _current?.CreatedAtDateTime;
             UpdatedAt = _current?.UpdatedAtDateTime;
             HasPin = _current?.HasPin ?? hasPin;

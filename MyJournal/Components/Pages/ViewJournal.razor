@@ -198,7 +198,8 @@
                                     }
                                     else
                                     {
-                                        @Trunc(StripHtml(e.Content), 180)
+                                        @* Strip HTML from Content for table preview snippet *@
+                                        @Trunc(StripHtml(e.Content ?? ""), 180)
                                     }
                                 </td>
 

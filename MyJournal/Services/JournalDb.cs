@@ -21,7 +21,7 @@ public class JournalDatabases
         await MigrateAddMoodColumnsAsync();
         await MigrateAddTagColumnsAsync();
         await MigrateDateTimeColumnsAsync();
-        await MigrateHtmlContentToPlainTextAsync();
+        await Migrate_RemoveDuplicateContentColumnsAsync();
     }
 
     private async Task MigrateAddMoodColumnsAsync()
@@ -152,46 +152,90 @@ public class JournalDatabases
     }
 
     /// <summary>
-    /// Migration: Convert HTML content to plain text for existing entries
-    /// This runs once to sanitize old HTML content
+    /// Migration: Remove duplicate content columns (ContentHtml, ContentText)
+    /// Keeps only Content column with HTML data
     /// </summary>
-    private async Task MigrateHtmlContentToPlainTextAsync()
+    private async Task Migrate_RemoveDuplicateContentColumnsAsync()
     {
         try
         {
-            // Only process entries that likely contain HTML (performance optimization)
-            var allEntries = await _db.Table<JournalEntries>().ToListAsync();
-            int convertedCount = 0;
+            var tableInfo = await _db.QueryAsync<TableInfoResult>("PRAGMA table_info(JournalEntries)");
+            var columnNames = tableInfo.Select(x => x.name).ToList();
 
-            foreach (var entry in allEntries)
+            // Check if duplicate columns exist
+            bool hasContentHtml = columnNames.Contains("ContentHtml");
+            bool hasContentText = columnNames.Contains("ContentText");
+
+            if (!hasContentHtml && !hasContentText)
             {
-                if (string.IsNullOrWhiteSpace(entry.Content))
-                    continue;
-
-                // Check if content contains HTML tags
-                if (TextSanitizer.ContainsHtmlTags(entry.Content))
-                {
-                    var plainText = TextSanitizer.ConvertHtmlToPlainText(entry.Content);
-                    
-                    // Only update if conversion produced different text
-                    if (plainText != entry.Content)
-                    {
-                        await _db.ExecuteAsync(
-                            "UPDATE JournalEntries SET Content = ? WHERE Id = ?",
-                            plainText, entry.Id);
-                        convertedCount++;
-                    }
-                }
+                System.Diagnostics.Debug.WriteLine("Content column migration: No duplicate columns found, skipping.");
+                return;
             }
 
-            if (convertedCount > 0)
-            {
-                System.Diagnostics.Debug.WriteLine($"HTML migration: Converted {convertedCount} entries to plain text.");
-            }
+            System.Diagnostics.Debug.WriteLine("Content column migration: Removing ContentHtml and ContentText columns...");
+
+            // Step 1: Create new table with correct schema
+            await _db.ExecuteAsync(@"
+                CREATE TABLE IF NOT EXISTS JournalEntries_new (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    DateKey TEXT NOT NULL UNIQUE,
+                    Title TEXT NOT NULL,
+                    Content TEXT NOT NULL DEFAULT '',
+                    HasPin INTEGER NOT NULL DEFAULT 0,
+                    Pin TEXT,
+                    CreatedAtText TEXT,
+                    UpdatedAtText TEXT,
+                    PrimaryMood TEXT NOT NULL DEFAULT '',
+                    SecondaryMoodsCsv TEXT NOT NULL DEFAULT '',
+                    TagsCsv TEXT,
+                    PrimaryCategory TEXT
+                )");
+
+            // Step 2: Copy data from old table, merging content columns
+            // Priority: Content (if has data) -> ContentHtml -> ContentText -> empty string
+            await _db.ExecuteAsync($@"
+                INSERT INTO JournalEntries_new (
+                    Id, DateKey, Title, Content, HasPin, Pin,
+                    CreatedAtText, UpdatedAtText,
+                    PrimaryMood, SecondaryMoodsCsv, TagsCsv, PrimaryCategory
+                )
+                SELECT 
+                    Id, 
+                    DateKey, 
+                    Title,
+                    COALESCE(
+                        NULLIF(TRIM(IFNULL(Content, '')), ''),
+                        NULLIF(TRIM(IFNULL(ContentHtml, '')), ''),
+                        NULLIF(TRIM(IFNULL(ContentText, '')), ''),
+                        ''
+                    ) AS Content,
+                    HasPin,
+                    Pin,
+                    CreatedAtText,
+                    UpdatedAtText,
+                    PrimaryMood,
+                    SecondaryMoodsCsv,
+                    TagsCsv,
+                    PrimaryCategory
+                FROM JournalEntries");
+
+            // Step 3: Drop old table
+            await _db.ExecuteAsync("DROP TABLE IF EXISTS JournalEntries");
+
+            // Step 4: Rename new table
+            await _db.ExecuteAsync("ALTER TABLE JournalEntries_new RENAME TO JournalEntries");
+
+            // Step 5: Recreate indices
+            await _db.ExecuteAsync("CREATE UNIQUE INDEX IF NOT EXISTS IX_JournalEntries_DateKey ON JournalEntries(DateKey)");
+            await _db.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_JournalEntries_CreatedAtText ON JournalEntries(CreatedAtText)");
+            await _db.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_JournalEntries_UpdatedAtText ON JournalEntries(UpdatedAtText)");
+
+            System.Diagnostics.Debug.WriteLine("Content column migration: Successfully consolidated to single Content column.");
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"HTML migration error: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"Content column migration error: {ex.Message}");
+            throw; // Re-throw to prevent app from continuing with corrupted schema
         }
     }
 
@@ -252,8 +296,8 @@ public class JournalDatabases
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(t => t));
 
-        // Convert HTML content to plain text before saving
-        var plainTextContent = TextSanitizer.ConvertHtmlToPlainText(content ?? "");
+        // Store HTML content directly (Quill editor output)
+        var contentHtml = TextSanitizer.SanitizeQuillHtml(content ?? "");
 
         var existing = await _db.Table<JournalEntries>()
                                 .Where(x => x.DateKey == k)
@@ -265,7 +309,7 @@ public class JournalDatabases
             {
                 DateKey = k,
                 Title = title,
-                Content = plainTextContent,
+                Content = contentHtml, // Stores Quill HTML
                 HasPin = hasPin,
                 Pin = hasPin ? pin : null,
 
@@ -284,7 +328,7 @@ public class JournalDatabases
         else
         {
             existing.Title = title;
-            existing.Content = plainTextContent;
+            existing.Content = contentHtml; // Stores Quill HTML
             existing.HasPin = hasPin;
             existing.Pin = hasPin ? pin : null;
 
@@ -478,11 +522,13 @@ public class JournalDatabases
 
         var items = await _db.QueryAsync<JournalEntries>(selectSql, selectArgs.ToArray());
 
-        // Optional: hide content for locked entries so list NEVER leaks content
+        // Hide content for locked entries so list NEVER leaks content
         foreach (var it in items)
         {
             if (it.HasPin)
+            {
                 it.Content = "";
+            }
         }
 
         return new JournalSearchResult

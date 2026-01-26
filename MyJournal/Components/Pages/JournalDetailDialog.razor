@@ -1,4 +1,5 @@
 ﻿@using JournalMaui.Models
+@using JournalMaui.Services
 @using Microsoft.AspNetCore.Components
 @using System.Text.RegularExpressions
 
@@ -60,34 +61,62 @@
     {
         get
         {
-            if (Entry == null || string.IsNullOrWhiteSpace(Entry.Content))
+            if (Entry == null)
                 return "<p class='empty'>No content available</p>";
 
-            var content = Entry.Content;
+            // Content stores Quill HTML
+            if (!string.IsNullOrWhiteSpace(Entry.Content))
+            {
+                return TextSanitizer.SanitizeQuillHtml(Entry.Content);
+            }
 
-            // Remove script tags and event handlers for security
-            content = Regex.Replace(content, @"<script[^>]*>.*?</script>", "",
-                RegexOptions.IgnoreCase | RegexOptions.Singleline);
-            content = Regex.Replace(content, @"\bon\w+\s*=\s*[""'][^""']*[""']", "",
-                RegexOptions.IgnoreCase);
-            content = Regex.Replace(content, @"javascript:", "",
-                RegexOptions.IgnoreCase);
-
-            return content;
+            return "<p class='empty'>No content available</p>";
         }
     }
 
-    private int ContentLength => Entry?.Content?.Length ?? 0;
+    /// <summary>
+    /// Converts plain text to basic HTML paragraphs for display
+    /// </summary>
+    private string ConvertPlainTextToHtml(string plainText)
+    {
+        if (string.IsNullOrWhiteSpace(plainText))
+            return "<p><br></p>";
+
+        plainText = plainText.Replace("&", "&amp;")
+                             .Replace("<", "&lt;")
+                             .Replace(">", "&gt;")
+                             .Replace("\"", "&quot;");
+
+        var lines = plainText.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+        var html = string.Join("", lines.Select(line => 
+            string.IsNullOrWhiteSpace(line) ? "<p><br></p>" : $"<p>{line}</p>"));
+
+        return html;
+    }
+
+    private int ContentLength
+    {
+        get
+        {
+            if (Entry?.Content == null) return 0;
+            // Strip HTML tags for character count
+            return TextSanitizer.ConvertHtmlToPlainText(Entry.Content).Length;
+        }
+    }
 
     private int WordCount
     {
         get
         {
-            if (Entry == null || string.IsNullOrWhiteSpace(Entry.Content))
+            if (Entry == null)
                 return 0;
 
-            // Strip HTML tags for accurate word count
-            var text = Regex.Replace(Entry.Content, @"<[^>]+>", " ");
+            // Strip HTML for word count
+            var text = TextSanitizer.ConvertHtmlToPlainText(Entry.Content ?? "");
+            
+            if (string.IsNullOrWhiteSpace(text))
+                return 0;
+
             var words = text.Split(new[] { ' ', '\n', '\r', '\t' },
                 StringSplitOptions.RemoveEmptyEntries);
             return words.Length;
