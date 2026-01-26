@@ -46,11 +46,11 @@ namespace MyJournal.Services
             if (exists != null) return false;
 
             await _db.InsertAsync(new CustomTag
-            {
-                Name = name,
-                NameNormalized = normalized,
-                CreatedAtUtc = DateTime.UtcNow
-            });
+    {
+        Name = name,
+        NameNormalized = normalized,
+        CreatedAtText = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
+    });
 
             return true;
         }
