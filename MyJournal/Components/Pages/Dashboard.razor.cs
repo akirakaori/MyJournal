@@ -3,6 +3,7 @@ using MudBlazor;
 using JournalMaui.Services;
 using JournalMaui.Models;
 using MyJournal.Services;
+using System.Text.RegularExpressions;
 
 namespace MyJournal.Components.Pages;
 
@@ -38,10 +39,31 @@ public partial class Dashboard : ComponentBase
     private List<TagStat> _topTags = new();
     private List<TagStat> _topTagsByEntries = new();
 
+    // ✅ Pie chart inputs (MudChart uses InputData/InputLabels)
+    private double[] TopTagsPieData => _topTags.Take(5).Select(t => (double)t.Count).ToArray();
+    private string[] TopTagsPieLabels => _topTags.Take(5).Select(t => t.Name).ToArray();
+
     private string RangeLabel =>
         _range.Start.HasValue && _range.End.HasValue
             ? $"{_range.Start.Value:dd MMM yyyy} → {_range.End.Value:dd MMM yyyy}"
             : "No range selected";
+
+    // ============================
+    // ✅ NEW: Word Count Trends
+    // ============================
+    private bool _wcLoading = true;
+    private List<int> _wcYears = new();
+    private int _wcYear = DateTime.Today.Year;
+
+    private readonly string[] _wcLabels = new[]
+    {
+        "Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"
+    };
+
+    private List<ChartSeries> _wcSeries = new()
+    {
+        new ChartSeries { Name = "Avg words", Data = new double[12] }
+    };
 
     private sealed class MoodBar
     {
@@ -61,7 +83,9 @@ public partial class Dashboard : ComponentBase
     {
         _range = State.SelectedRange ?? new DateRange(DateTime.Today.AddDays(-30), DateTime.Today);
         _tempRange = new DateRange(_range.Start, _range.End);
-        await LoadAsync();
+
+        await LoadAsync();          // existing range analytics
+        await InitWordCountAsync(); // ✅ new independent year analytics
     }
 
     private void TogglePicker()
@@ -90,6 +114,9 @@ public partial class Dashboard : ComponentBase
         await LoadAsync();
     }
 
+    // ============================
+    // Existing loader (range-based)
+    // ============================
     private async Task LoadAsync()
     {
         _loading = true;
@@ -247,6 +274,125 @@ public partial class Dashboard : ComponentBase
 
         _loading = false;
         StateHasChanged();
+    }
+
+    // ============================
+    // ✅ NEW: Word Count Trends logic (independent)
+    // ============================
+    private async Task InitWordCountAsync()
+    {
+        _wcLoading = true;
+        StateHasChanged();
+
+        // we only need dates + content, so load a wide range once (min year -> today).
+        // If you have entries older than 10 years, adjust the start year.
+        var start = new DateTime(DateTime.Today.Year - 10, 1, 1);
+        var end = DateTime.Today;
+
+        var entries = await Db.GetEntriesByDateRangeAsync(start, end);
+
+        _wcYears = entries
+            .Select(e => e.DateKey)
+            .Select(TryParseDateKey)
+            .Where(d => d.HasValue)
+            .Select(d => d!.Value.Year)
+            .Distinct()
+            .OrderByDescending(y => y)
+            .ToList();
+
+        if (_wcYears.Count == 0)
+            _wcYears = new List<int> { DateTime.Today.Year };
+
+        if (!_wcYears.Contains(_wcYear))
+            _wcYear = _wcYears[0];
+
+        await LoadWordCountYearAsync(_wcYear);
+
+        _wcLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task OnWordCountYearChanged(int year)
+    {
+        _wcYear = year;
+        await LoadWordCountYearAsync(_wcYear);
+    }
+
+    private async Task LoadWordCountYearAsync(int year)
+    {
+        _wcLoading = true;
+        StateHasChanged();
+
+        var start = new DateTime(year, 1, 1);
+        var end = new DateTime(year, 12, 31);
+
+        var entries = await Db.GetEntriesByDateRangeAsync(start, end);
+
+        var totals = new int[12];
+        var counts = new int[12];
+
+        foreach (var e in entries)
+        {
+            var dt = TryParseDateKey(e.DateKey);
+            if (!dt.HasValue) continue;
+
+            var m = dt.Value.Month - 1; // 0..11
+            if (m < 0 || m > 11) continue;
+
+            var words = CountWords(e.Content ?? "");
+            totals[m] += words;
+            counts[m] += 1;
+        }
+
+        var avg = new double[12];
+        for (var i = 0; i < 12; i++)
+            avg[i] = counts[i] == 0 ? 0 : Math.Round((double)totals[i] / counts[i], 0);
+
+        _wcSeries = new List<ChartSeries>
+        {
+            new ChartSeries { Name = "Avg words", Data = avg }
+        };
+
+        _wcLoading = false;
+        StateHasChanged();
+    }
+
+    private static DateTime? TryParseDateKey(string? dateKey)
+    {
+        if (string.IsNullOrWhiteSpace(dateKey)) return null;
+        if (DateTime.TryParse(dateKey, out var dt)) return dt.Date;
+        return null;
+    }
+
+    private static int CountWords(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return 0;
+        return Regex.Matches(text, @"\b[\p{L}\p{N}']+\b").Count;
+    }
+
+    // ============================
+    // Existing helpers
+    // ============================
+
+
+    private string SliceColor(int index)
+    {
+        var palette = new[]
+        {
+            "#4CAF50",
+            "#2196F3",
+            "#FFC107",
+            "#9C27B0",
+            "#FF5722",
+            "#00BCD4",
+            "#E91E63",
+            "#8BC34A",
+            "#FF9800",
+            "#3F51B5"
+        };
+
+        if (index < 0) index = 0;
+        return palette[index % palette.Length];
     }
 
     private void Reset()

@@ -2,7 +2,8 @@
 @using MudBlazor
 
 <MudStack Spacing="3" Style="padding:4px 6px 12px 6px;">
-    <MudPaper Elevation="0" Rounded="true" Class="pa-4" Style="border:1px solid var(--mud-palette-divider); background:rgba(255,255,255,0.02);">
+    <MudPaper Elevation="0" Rounded="true" Class="pa-4"
+              Style="border:1px solid var(--mud-palette-divider); background:rgba(255,255,255,0.02);">
         <MudStack Row="true" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween" Style="gap:12px;">
             <MudStack Spacing="0">
                 <MudText Typo="Typo.h3" Style="line-height:1.05; font-weight:750;">
@@ -55,10 +56,6 @@
                             <MudIcon Icon="@Icons.Material.Filled.BarChart" />
                             <MudText Typo="Typo.h6" Style="font-weight:800;">Mood Distribution</MudText>
                         </MudStack>
-                        <MudChip T="string" Variant="Variant.Outlined" Color="Color.Secondary" Style="border-radius:999px;">
-                            @RangeLabel
-                        </MudChip>
-
                     </MudStack>
 
                     @if (_loading)
@@ -80,8 +77,6 @@
                         </div>
 
                         <div style="height:1px; width:100%; background:rgba(255,255,255,0.06); margin-top:10px;"></div>
-
-
                     }
                 </MudStack>
             </MudPaper>
@@ -95,10 +90,6 @@
                             <MudIcon Icon="@Icons.Material.Filled.Star" />
                             <MudText Typo="Typo.h6" Style="font-weight:800;">Most Frequent Mood</MudText>
                         </MudStack>
-                        <MudChip T="string" Variant="Variant.Outlined" Color="Color.Secondary" Style="border-radius:999px;">
-                            @RangeLabel
-                        </MudChip>
-
                     </MudStack>
 
                     @if (_loading)
@@ -118,14 +109,12 @@
                                 <MudPaper Elevation="0" Rounded="true" Class="pa-3"
                                           Style="border-radius:14px; border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.02);">
                                     <MudText Typo="Typo.caption" Color="Color.Secondary" Style="font-weight:700;">Top mood</MudText>
-                                    <MudText Typo="Typo.h4" Style="line-height:1.05; font-weight:850;">
+                                    <MudText Typo="Typo.h5" Style="line-height:1.05; font-weight:850;">
                                         @_mostFrequentMood
                                     </MudText>
                                     <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Style="opacity:.9;">
                                         @_mostFrequentMoodCount of @_moodTotal (@_mostFrequentMoodPct%)
                                     </MudText>
-
-
                                 </MudPaper>
                             </MudItem>
 
@@ -166,10 +155,6 @@
                             <MudIcon Icon="@Icons.Material.Filled.DonutSmall" />
                             <MudText Typo="Typo.h6" Style="font-weight:800;">Tag Breakdown</MudText>
                         </MudStack>
-                        <MudChip T="string" Variant="Variant.Outlined" Color="Color.Secondary" Style="border-radius:999px;">
-                            @RangeLabel
-                        </MudChip>
-
                     </MudStack>
 
                     @if (_loading)
@@ -243,10 +228,6 @@
                             <MudIcon Icon="@Icons.Material.Filled.LocalOffer" />
                             <MudText Typo="Typo.h6" Style="font-weight:800;">Most Used Tags</MudText>
                         </MudStack>
-                        <MudChip T="string" Variant="Variant.Outlined" Color="Color.Secondary" Style="border-radius:999px;">
-                            @RangeLabel
-                        </MudChip>
-
                     </MudStack>
 
                     @if (_loading)
@@ -261,14 +242,63 @@
                     }
                     else
                     {
-                        <div style="width:100%; min-height:250px; display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:center; gap:10px; padding:8px 6px 0 6px; overflow:hidden;">
-                            @foreach (var t in _topTags.Take(5))
-                            {
-                                @TagBar(t.Name, t.Count, _maxTagCount, SliceColorTag(t.Name))
-                            }
+                        <div class="pieWrap">
+                            <MudChart ChartType="ChartType.Pie"
+                                      InputData="@TopTagsPieData"
+                                      InputLabels="@TopTagsPieLabels"
+                                      Width="100%"
+                                      Height="280px" />
                         </div>
 
-                        <div style="height:1px; width:100%; background:rgba(255,255,255,0.06); margin-top:10px;"></div>
+                        <MudDivider Class="mt-2" />
+                    }
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        @* ✅ NEW: last row full width *@
+        <MudItem xs="12">
+            <MudPaper Class="pa-4" Elevation="1" Rounded="true" Style="border-radius:16px;">
+                <MudStack Spacing="2">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween" Style="gap:12px;">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudIcon Icon="@Icons.Material.Filled.ShowChart" />
+                            <MudText Typo="Typo.h6" Style="font-weight:800;">
+                                Word Count Trends
+                                <span style="opacity:.75; font-weight:650;">→ Average words per entry (Jan–Dec)</span>
+                            </MudText>
+                        </MudStack>
+
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudText Typo="Typo.body2" Style="opacity:.85; font-weight:650;">Year</MudText>
+
+                            <MudSelect T="int"
+                                       Dense="true"
+                                       Variant="Variant.Outlined"
+                                       Style="min-width:140px;"
+                                       Value="_wcYear"
+                                       ValueChanged="OnWordCountYearChanged">
+                                @foreach (var y in _wcYears)
+                                {
+                                    <MudSelectItem Value="@y">@y</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudStack>
+                    </MudStack>
+
+
+
+                    @if (_wcLoading)
+                    {
+                        <MudProgressLinear Indeterminate="true" />
+                    }
+                    else
+                    {
+                        <MudChart ChartType="ChartType.Line"
+                                  ChartSeries="_wcSeries"
+                                  XAxisLabels="_wcLabels"
+                                  Width="100%"
+                                  Height="300px" />
                     }
                 </MudStack>
             </MudPaper>
@@ -286,54 +316,13 @@
             <div style="opacity:.85; font-size:0.92rem;">@label</div>
         </div>
     </div>;
-
-    private RenderFragment TagBar(string label, int count, int maxCount, string color) => @<div style="width:clamp(50px, 8vw, 66px); display:flex; flex-direction:column; align-items:center;">
-        <div style="height:210px; width:22px; display:flex; align-items:flex-end;">
-            <div style="width:100%; height:@($"{(maxCount <= 0 ? 0 : (count * 190.0 / maxCount))}px"); background:@color; border-radius:999px;"></div>
-        </div>
-        <div style="margin-top:10px; text-align:center; width:100%;">
-            <div style="font-weight:800;">@count</div>
-            <div style="opacity:.85; font-size:0.85rem; width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@label</div>
-        </div>
-    </div>;
-
-    private string SliceColor(int index)
-    {
-        var palette = new[]
-        {
-            "#4CAF50",
-            "#2196F3",
-            "#FFC107",
-            "#9C27B0",
-            "#FF5722",
-            "#00BCD4",
-            "#E91E63",
-            "#8BC34A",
-            "#FF9800",
-            "#3F51B5"
-        };
-
-        if (index < 0) index = 0;
-        return palette[index % palette.Length];
-    }
-
-    private string SliceColorTag(string tag)
-    {
-        var palette = new[]
-        {
-            "#00BCD4",
-            "#FF9800",
-            "#8BC34A",
-            "#E91E63",
-            "#3F51B5",
-            "#9C27B0",
-            "#4CAF50",
-            "#FFC107",
-            "#2196F3",
-            "#FF5722"
-        };
-
-        var idx = Math.Abs(tag.GetHashCode()) % palette.Length;
-        return palette[idx];
-    }
 }
+
+
+<style>
+    .pieWrap {
+        width: 100%;
+        max-width: 360px;
+        margin: 0 auto;
+    }
+</style>

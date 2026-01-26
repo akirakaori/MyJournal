@@ -1,19 +1,20 @@
-﻿@inject MyJournal.Services.AppState AppState
+﻿@using Microsoft.AspNetCore.Components.Routing
 @inject NavigationManager NavManager
+@inject MyJournal.Services.AppState AppState
 
 @implements IDisposable
 
-@if (AppState.IsLoggedIn)
-{
-    <div class="top-row ps-3 navbar">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="">
-                <img src="./images/myjournal-logo.jpg" alt="My Journal" class="navbar-logo" />
-                <span>My Journal</span>
-            </a>
-        </div>
+<!--  Always visible top-left brand -->
+<div class="top-row ps-3 navbar app-topbar">
+    <div class="container-fluid">
+        <a class="navbar-brand app-brand" href="">
+            <img src="./images/myjournal-logo.jpg" alt="My Journal" class="navbar-logo" />
+            <span>MyJournal</span>
+        </a>
+
+
     </div>
-}
+</div>
 
 <input type="checkbox" title="Navigation menu" class="navbar-toggler" />
 
@@ -22,8 +23,9 @@
 
         @if (!AppState.IsLoggedIn)
         {
+            <!-- ✅ Before login: only show Login -->
             <div class="nav-item px-3">
-                <NavLink class="nav-link nav-item-link" href="login">
+                <NavLink class="nav-link nav-item-link" href="login" Match="NavLinkMatch.All">
                     <i class="bi bi-box-arrow-in-right"></i>
                     <span>Login</span>
                 </NavLink>
@@ -31,78 +33,181 @@
         }
         else
         {
-            <!-- MAIN NAV -->
-            <div class="nav-main">
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link nav-item-link" href="dashboard">
-                        <i class="bi bi-speedometer2"></i>
-                        <span>Dashboard</span>
-                    </NavLink>
-                </div>
-
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link nav-item-link" href="journalentry">
-                        <i class="bi bi-journal-text"></i>
-                        <span>Write Journals</span>
-                    </NavLink>
-                </div>
-
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link nav-item-link" href="calendar">
-                        <i class="bi bi-calendar"></i>
-                        <span>Calendar</span>
-                    </NavLink>
-                </div>
-
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link nav-item-link" href="streaks">
-                        <i class="bi bi-fire"></i>
-                        <span>Streak Tracking</span>
-                    </NavLink>
-                </div>
-
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link nav-item-link" href="viewjournals">
-                        <i class="bi bi-book"></i>
-                        <span>View Journals</span>
-                    </NavLink>
-                </div>
-
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link nav-item-link" href="customTag">
-                        <i class="bi bi-tags"></i>
-                        <span>Custom Tags</span>
-                    </NavLink>
-                </div>
+            <!-- ✅ After login: main nav -->
+            <div class="nav-item px-3">
+                <NavLink class="nav-link nav-item-link" href="dashboard" Match="NavLinkMatch.All">
+                    <i class="bi bi-speedometer2"></i>
+                    <span>Dashboard</span>
+                </NavLink>
             </div>
 
-            <!-- LOGOUT AT BOTTOM -->
-            <div class="nav-footer px-3">
-                <button class="nav-link nav-item-link btn btn-link logout-btn"
-                        @onclick="Logout"
-                        type="button">
+            <div class="nav-item px-3">
+                <NavLink class="nav-link nav-item-link" href="journalentry">
+                    <i class="bi bi-pencil-square"></i>
+                    <span>Journal</span>
+                </NavLink>
+            </div>
+
+            <div class="nav-item px-3">
+                <NavLink class="nav-link nav-item-link" href="calendar">
+                    <i class="bi bi-calendar-check"></i>
+                    <span>Calendar</span>
+                </NavLink>
+            </div>
+
+            <div class="nav-item px-3">
+                <NavLink class="nav-link nav-item-link" href="viewjournals">
+                    <i class="bi bi-journal-bookmark"></i>
+                    <span>View Journal</span>
+                </NavLink>
+            </div>
+
+            <div class="nav-item px-3">
+                <NavLink class="nav-link nav-item-link" href="customTag">
+                    <i class="bi bi-tags"></i>
+                    <span>Custom Tag</span>
+                </NavLink>
+            </div>
+
+
+            <div class="divider"></div>
+
+            <div class="nav-item px-3">
+                <button type="button" class="nav-link nav-item-link btn-linklike" @onclick="Logout">
                     <i class="bi bi-box-arrow-right"></i>
                     <span>Logout</span>
                 </button>
             </div>
         }
+
     </nav>
 </div>
+
+<style>
+    /* Top bar always visible */
+    .app-topbar {
+        background: var(--mud-palette-surface);
+        border-bottom: 1px solid var(--mud-palette-divider);
+        height: 3.5rem;
+        display: flex;
+        align-items: center;
+    }
+
+    .app-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--mud-palette-text-primary);
+        text-decoration: none;
+        font-weight: 800;
+    }
+
+    .navbar-logo {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        object-fit: cover;
+        border: 1px solid var(--mud-palette-divider);
+        background: var(--mud-palette-background);
+    }
+
+    .brand-user {
+        margin-left: auto;
+        color: var(--mud-palette-text-secondary);
+        font-size: 0.95rem;
+        font-weight: 600;
+        opacity: 0.9;
+    }
+
+    /* Sidebar */
+    .nav-scrollable {
+        padding: 1rem 0.9rem 1rem 0.9rem;
+        height: calc(100vh - 3.5rem);
+        background: var(--mud-palette-surface);
+        border-right: 1px solid var(--mud-palette-divider);
+        overflow-y: auto;
+    }
+
+    .nav-item-link {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border-radius: 12px;
+        padding: 10px 12px;
+        color: var(--mud-palette-text-primary);
+        transition: background 0.15s ease, transform 0.08s ease;
+    }
+
+        .nav-item-link:hover {
+            background: rgba(0,0,0,0.04);
+            transform: translateY(-1px);
+        }
+
+    /* Make hover work in dark theme too (still subtle) */
+    :root[data-mud-theme="dark"] .nav-item-link:hover,
+    .mud-theme-dark .nav-item-link:hover {
+        background: rgba(255,255,255,0.06);
+    }
+
+    /* Active nav link */
+    .nav-link.active {
+        background: rgba(0,0,0,0.06);
+        font-weight: 800;
+    }
+
+    :root[data-mud-theme="dark"] .nav-link.active,
+    .mud-theme-dark .nav-link.active {
+        background: rgba(255,255,255,0.08);
+    }
+
+    .divider {
+        height: 1px;
+        background: var(--mud-palette-divider);
+        margin: 10px 12px;
+        opacity: 0.8;
+    }
+
+    /* Button that looks like a NavLink */
+    .btn-linklike {
+        width: 100%;
+        text-align: left;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        font: inherit;
+    }
+
+    /* Keep your existing toggler behavior if you use it */
+    .navbar-toggler {
+        display: none;
+    }
+
+    @@media (max-width: 900px) {
+        .navbar-toggler {
+            display: block;
+        }
+    }
+</style>
 
 @code {
     protected override void OnInitialized()
     {
-        AppState.OnChange += StateHasChanged;
+        AppState.OnChange += OnAppStateChanged;
     }
 
-    public void Dispose()
+    private void OnAppStateChanged()
     {
-        AppState.OnChange -= StateHasChanged;
+        _ = InvokeAsync(StateHasChanged);
     }
 
     private void Logout()
     {
         AppState.Logout();
-        NavManager.NavigateTo("/login", replace: true);
+        NavManager.NavigateTo("/login", forceLoad: false);
+    }
+
+    public void Dispose()
+    {
+        AppState.OnChange -= OnAppStateChanged;
     }
 }

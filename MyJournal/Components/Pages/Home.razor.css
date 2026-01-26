@@ -33,12 +33,12 @@
     color: #1e293b;
 }
 
-.hero-logo img {
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    object-fit: cover;
-}
+    .hero-logo img {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        object-fit: cover;
+    }
 
 .hero-headline {
     font-size: 3rem;
@@ -73,10 +73,10 @@
     transition: all 0.3s ease !important;
 }
 
-.hero-login-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(90, 142, 224, 0.35) !important;
-}
+    .hero-login-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(90, 142, 224, 0.35) !important;
+    }
 
 /* Right Side: Illustration */
 .hero-illustration {
@@ -86,14 +86,14 @@
     padding: 1rem;
 }
 
-.hero-illustration img {
-    width: 100%;
-    max-width: 700px;
-    height: auto;
-    border-radius: 20px;
-    box-shadow: 0 25px 70px rgba(0, 0, 0, 0.2);
-    object-fit: cover;
-}
+    .hero-illustration img {
+        width: 100%;
+        max-width: 700px;
+        height: auto;
+        border-radius: 20px;
+        box-shadow: 0 25px 70px rgba(0, 0, 0, 0.2);
+        object-fit: cover;
+    }
 
 /* Responsive Design */
 @@media (max-width: 968px) {
@@ -145,7 +145,7 @@
     border-radius: 12px;
 }
 
-.mud-grid .mud-grid-item .mud-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-}
+    .mud-grid .mud-grid-item .mud-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    }

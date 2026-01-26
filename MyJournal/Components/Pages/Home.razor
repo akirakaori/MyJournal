@@ -1,123 +1,175 @@
 ﻿@page "/"
 @using MudBlazor
-@inject NavigationManager NavManager
-@inject MyJournal.Services.AppState AppState
+@* @inject NavigationManager NavManager
+@inject MyJournal.Services.AppState AppState *@
+
+@implements IDisposable
 
 @if (!AppState.IsLoggedIn)
 {
     <!-- Hero Landing Page -->
-    <div class="hero-container">
-        <div class="hero-content">
-            
-            <!-- Left Side: Text & CTA -->
-            <div class="hero-text-section">
-                <div class="hero-logo">
-                    <img src="./images/myjournal-logo.jpg" alt="MyJournal" />
-                    <span>MyJournal</span>
+    <div class="hero-wrap">
+        <MudPaper Class="hero-card" Elevation="0" Rounded="true">
+            <div class="hero-grid">
+
+                <!-- Left -->
+                <div class="hero-left">
+                    <div class="hero-logo">
+                        <img src="./images/myjournal-logo.jpg" alt="MyJournal" />
+                        <span>MyJournal</span>
+                    </div>
+
+                    <h3 class="hero-title">
+                        Your thoughts🧠 <br />
+                        Your feelings✍️ <br />
+                        <span class="hero-gradient">One place</span> — MyJournal
+                    </h3>
+
+                    <p class="hero-subtitle">
+                        Access your journal from any browser and keep writing wherever you are.
+                        <br />
+                        A secure daily journal with moods, tags, streaks, analytics, and PDF export.
+                    </p>
+
+                    <div class="hero-actions">
+                        <MudButton Class="hero-btn"
+                                   Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   Size="Size.Large"
+                                   OnClick="GoLogin">
+                            Get Started
+                        </MudButton>
+
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Primary"
+                                   Size="Size.Large"
+                                   OnClick="GoLogin">
+                            Login
+                        </MudButton>
+                    </div>
                 </div>
-                
-                <h3 class="hero-headline">
-                    Your thoughts🧠
-                    Your feelings✍️ <br />
-                    <span class="gradient-text">One place</span> — MyJournal
-                </h3>
-                
-                <p class="hero-description">
-                    Access your journal from any browser and keep writing wherever you are!.<br>
-                    A secure daily journal with moods, tags, streaks, analytics, and PDF export.
-                </p>
-                
-                <MudButton Class="hero-login-btn" 
-                           Variant="Variant.Filled" 
-                           Color="Color.Primary" 
-                           Size="Size.Large"
-                           OnClick="GoLogin">
-                    Get Started
-                </MudButton>
+
+                <!-- Right -->
+                <div class="hero-right">
+                    <img src="./images/myjournal-hero.jpg" alt="MyJournal App Preview" />
+                </div>
+
             </div>
-            
-            <!-- Right Side: Illustration -->
-            <div class="hero-illustration">
-                <img src="./images/myjournal-hero.jpg" alt="MyJournal App Preview" />
-            </div>
-            
-        </div>
+        </MudPaper>
     </div>
 }
 else
 {
     <!-- Logged In View -->
-    <MudContainer MaxWidth="MaxWidth.Large" Class="py-4">
+    <MudContainer Class="py-4">
 
-        <MudPaper Elevation="2" Class="pa-6 mb-4 mud-theme-surface">
+        <MudPaper Elevation="0" Rounded="true" Class="home-header pa-6 mb-4">
             <MudText Typo="Typo.h4" Class="mb-2">MyJournal.exe</MudText>
             <MudText Typo="Typo.body1">
                 A secure daily journal with moods, tags, streaks, analytics, and PDF export — stored locally in SQLite.
             </MudText>
         </MudPaper>
-
-        <MudGrid Spacing="3">
-
-            <MudItem xs="12" md="6" lg="4">
-                <MudCard Class="h-100">
-                    <MudCardContent>
-                        <MudText Typo="Typo.h6" Class="mb-2">Today’s Entry</MudText>
-                        <MudText Typo="Typo.body2" Class="mb-3">
-                            Create/update your single entry for today with Markdown or rich-text.
-                        </MudText>
-                        <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="GoToday">
-                            Write / Edit
-                        </MudButton>
-                    </MudCardContent>
-                </MudCard>
-            </MudItem>
-
-            <MudItem xs="12" md="6" lg="4">
-                <MudCard Class="h-100">
-                    <MudCardContent>
-                        <MudText Typo="Typo.h6" Class="mb-2">Calendar View</MudText>
-                        <MudText Typo="Typo.body2" Class="mb-3">
-                            Jump to any past date quickly and open entries by day.
-                        </MudText>
-                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="GoCalendar">
-                            Open Calendar
-                        </MudButton>
-                    </MudCardContent>
-                </MudCard>
-            </MudItem>
-
-           
-
-
-            <MudItem xs="12" md="6" lg="4">
-                <MudCard Class="h-100">
-                    <MudCardContent>
-                        <MudText Typo="Typo.h6" Class="mb-2">Dashboard &amp; Analytics</MudText>
-                        <MudText Typo="Typo.body2" Class="mb-3">
-                            Mood distribution, streaks, most-used tags, and word-count trends.
-                        </MudText>
-                        <MudButton Variant="Variant.Outlined" Color="Color.Dark" OnClick="GoDashboard">
-                            Open Dashboard
-                        </MudButton>
-                    </MudCardContent>
-                </MudCard>
-            </MudItem>
-
-            <MudItem xs="12" md="6" lg="4">
-                <MudCard Class="h-100">
-                    <MudCardContent>
-                        <MudText Typo="Typo.h6" Class="mb-2">Export PDF</MudText>
-                        <MudText Typo="Typo.body2" Class="mb-3">
-                            Export journals by date range to PDF for backup or sharing.
-                        </MudText>
-                        <MudButton Variant="Variant.Outlined" Color="Color.Success" OnClick="GoExport">
-                            Export
-                        </MudButton>
-                    </MudCardContent>
-                </MudCard>
-            </MudItem>
-
-        </MudGrid>
-    
+        @* callling the streak component *@
+        <StreakSummary /> 
     </MudContainer>
 }
+
+<style>
+    .hero-wrap {
+        padding: 24px;
+    }
+
+    .hero-card {
+        border-radius: 18px;
+        padding: 26px;
+        border: 1px solid var(--mud-palette-divider);
+        background: var(--mud-palette-surface);
+    }
+
+    .hero-grid {
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 22px;
+        align-items: center;
+    }
+
+    .hero-left {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .hero-logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 700;
+        color: var(--mud-palette-text-primary);
+    }
+
+        .hero-logo img {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            object-fit: cover;
+            border: 1px solid var(--mud-palette-divider);
+        }
+
+    .hero-title {
+        margin: 0;
+        line-height: 1.25;
+        font-weight: 800;
+        color: var(--mud-palette-text-primary);
+    }
+
+    .hero-gradient {
+        background: linear-gradient(90deg, var(--mud-palette-primary), var(--mud-palette-secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+
+    .hero-subtitle {
+        margin: 0;
+        color: var(--mud-palette-text-secondary);
+        max-width: 58ch;
+    }
+
+    .hero-actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 6px;
+    }
+
+    .hero-right {
+        display: flex;
+        justify-content: center;
+    }
+
+        .hero-right img {
+            width: 100%;
+            max-width: 520px;
+            border-radius: 18px;
+            object-fit: cover;
+            border: 1px solid var(--mud-palette-divider);
+            background: var(--mud-palette-background);
+        }
+
+    .home-header {
+        border-radius: 16px;
+        border: 1px solid var(--mud-palette-divider);
+        background: var(--mud-palette-surface);
+    }
+
+    /* Responsive */
+    @@media (max-width: 900px) {
+        .hero-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .hero-wrap {
+            padding: 14px;
+        }
+    }
+</style>
