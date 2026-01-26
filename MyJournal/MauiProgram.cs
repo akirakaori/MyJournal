@@ -39,6 +39,8 @@ namespace MyJournal
             builder.Services.AddSingleton<PinUnlockService>();
             builder.Services.AddSingleton<StreakService>();
             builder.Services.AddSingleton<PdfExportService>();
+            builder.Services.AddSingleton<ProfileService>();
+            builder.Services.AddSingleton<NotificationService>();
 
 
 

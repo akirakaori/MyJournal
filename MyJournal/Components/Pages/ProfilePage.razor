@@ -1,0 +1,750 @@
+@page "/profile"
+@using JournalMaui.Models
+@using JournalMaui.Services
+@using MyJournal.Services
+@using MudBlazor
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    @if (_isLoading)
+    {
+        <MudProgressCircular Indeterminate="true" />
+        <MudText>Loading profile...</MudText>
+    }
+    else if (ProfileData != null)
+    {
+        <MudGrid>
+            <!-- LEFT PANEL: Profile Summary -->
+            <MudItem xs="12" md="4">
+                <MudCard Class="pa-4">
+                    <MudCardContent Class="d-flex flex-column align-center">
+                        @if (!string.IsNullOrEmpty(ProfileData.AvatarBase64))
+                        {
+                            <MudAvatar Style="width: 120px; height: 120px;">
+                                <MudImage Src="@($"data:image/png;base64,{ProfileData.AvatarBase64}")" />
+                            </MudAvatar>
+                        }
+                        else
+                        {
+                            <MudAvatar Color="Color.Primary" Style="width: 120px; height: 120px; font-size: 48px;">
+                                @GetInitials(ProfileData.DisplayName)
+                            </MudAvatar>
+                        }
+                        
+                        <MudButton Variant="Variant.Outlined" 
+                                   Color="Color.Primary" 
+                                   Class="mt-3"
+                                   Disabled="!IsEditMode"
+                                   OnClick="OnChangePhotoClick">
+                            Change Photo
+                        </MudButton>
+                        
+                        <MudText Typo="Typo.h5" Class="mt-4">@ProfileData.DisplayName</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">@ProfileData.Email</MudText>
+                        <MudText Typo="Typo.caption" Class="mt-2">Member since @ProfileData.JoinDate.ToLocalTime().ToString("MMMM yyyy")</MudText>
+                        
+                        <MudDivider Class="my-4" />
+                        
+                        <MudText Typo="Typo.h6" Class="mb-2">Statistics</MudText>
+                        <MudGrid Spacing="2">
+                            <MudItem xs="6">
+                                <MudPaper Class="pa-2 text-center">
+                                    <MudText Typo="Typo.h4">@_totalEntries</MudText>
+                                    <MudText Typo="Typo.caption">Entries</MudText>
+                                </MudPaper>
+                            </MudItem>
+                            <MudItem xs="6">
+                                <MudPaper Class="pa-2 text-center">
+                                    <MudText Typo="Typo.h4">@_currentStreak</MudText>
+                                    <MudText Typo="Typo.caption">Day Streak</MudText>
+                                </MudPaper>
+                            </MudItem>
+                        </MudGrid>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+            
+            <!-- RIGHT PANEL: Tabs -->
+            <MudItem xs="12" md="8">
+                <MudCard>
+                    <MudTabs>
+                        <!-- Account Tab -->
+                        <MudTabPanel Text="Account">
+                            <MudCardContent>
+                                <MudForm @ref="_form">
+                                    <MudTextField @bind-Value="ProfileData.DisplayName" 
+                                                  Label="Display Name" 
+                                                  Variant="Variant.Outlined" 
+                                                  Disabled="!IsEditMode"
+                                                  Required="true"
+                                                  Class="mb-3" />
+                                    
+                                    <MudTextField @bind-Value="ProfileData.Email" 
+                                                  Label="Email" 
+                                                  Variant="Variant.Outlined" 
+                                                  Disabled="!IsEditMode"
+                                                  Required="true"
+                                                  Class="mb-3" />
+                                    
+                                    <MudSelect @bind-Value="ProfileData.TimeZoneId" 
+                                               Label="Time Zone" 
+                                               Variant="Variant.Outlined" 
+                                               Disabled="!IsEditMode"
+                                               Class="mb-3">
+                                        @foreach (var tz in TimeZoneInfo.GetSystemTimeZones())
+                                        {
+                                            <MudSelectItem Value="@tz.Id">@tz.DisplayName</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                    
+                                    <MudTextField Value="@GetJoinDateDisplay()" 
+                                                  Label="Join Date" 
+                                                  Variant="Variant.Outlined" 
+                                                  Disabled="true"
+                                                  Class="mb-3" />
+                                    
+                                    <MudDivider Class="my-4" />
+                                    
+                                    
+                                    @if (!IsEditMode)
+                                    {
+                                        <MudButton Variant="Variant.Filled" 
+                                                   Color="Color.Primary" 
+                                                   OnClick="EnableEditMode">
+                                            Edit Profile
+                                        </MudButton>
+                                    }
+                                    else
+                                    {
+                                        <MudButton Variant="Variant.Filled" 
+                                                   Color="Color.Primary" 
+                                                   OnClick="SaveProfile"
+                                                   Disabled="_isSaving">
+                                            @if (_isSaving)
+                                            {
+                                                <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                                <MudText Class="ml-2">Saving...</MudText>
+                                            }
+                                            else
+                                            {
+                                                <MudText>Save</MudText>
+                                            }
+                                        </MudButton>
+                                        <MudButton Variant="Variant.Outlined" 
+                                                   Color="Color.Secondary" 
+                                                   OnClick="CancelEdit"
+                                                   Class="ml-2">
+                                            Cancel
+                                        </MudButton>
+                                    }
+                                </MudForm>
+                            </MudCardContent>
+                        </MudTabPanel>
+                        
+                        <!-- Security Tab -->
+                        <MudTabPanel Text="Security">
+                            <MudCardContent>
+                                <MudText Typo="Typo.h6" Class="mb-3">Change PIN (4 digits)</MudText>
+                                <MudTextField @bind-Value="_currentPassword" 
+                                              Label="Current PIN" 
+                                              InputType="InputType.Password" 
+                                              Variant="Variant.Outlined" 
+                                              Disabled="!IsEditMode"
+                                              MaxLength="4"
+                                              Class="mb-3"
+                                              HelperText="Enter your current 4-digit PIN" />
+                                
+                                <MudTextField @bind-Value="_newPassword" 
+                                              Label="New PIN" 
+                                              InputType="InputType.Password" 
+                                              Variant="Variant.Outlined" 
+                                              Disabled="!IsEditMode"
+                                              MaxLength="4"
+                                              Class="mb-3"
+                                              HelperText="Enter a new 4-digit PIN" />
+                                
+                                <MudTextField @bind-Value="_confirmPassword" 
+                                              Label="Confirm New PIN" 
+                                              InputType="InputType.Password" 
+                                              Variant="Variant.Outlined" 
+                                              Disabled="!IsEditMode"
+                                              MaxLength="4"
+                                              Class="mb-3"
+                                              HelperText="Re-enter your new 4-digit PIN" />
+                                
+                                @if (IsEditMode && (!string.IsNullOrEmpty(_currentPassword) || !string.IsNullOrEmpty(_newPassword) || !string.IsNullOrEmpty(_confirmPassword)))
+                                {
+                                    <MudButton Variant="Variant.Filled" 
+                                               Color="Color.Primary" 
+                                               OnClick="ChangePinAsync"
+                                               Disabled="_isSaving"
+                                               Class="mb-3">
+                                        @if (_isSaving)
+                                        {
+                                            <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                            <MudText Class="ml-2">Changing PIN...</MudText>
+                                        }
+                                        else
+                                        {
+                                            <MudText>Change PIN</MudText>
+                                        }
+                                    </MudButton>
+                                }
+                                
+                                <MudDivider Class="my-4" />
+                                
+                                <MudText Typo="Typo.h6" Class="mb-3">App Security</MudText>
+                                <MudSwitch @bind-Value="ProfileData.AppLockEnabled" 
+                                           Label="Enable App Lock (PIN)" 
+                                           Color="Color.Primary" 
+                                           Disabled="!IsEditMode" />
+                                
+                                <MudDivider Class="my-4" />
+                                
+                                <MudText Typo="Typo.h6" Class="mb-3">Session Management</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                                    This will clear all stored data and require you to register again.
+                                </MudText>
+                                <MudButton Variant="Variant.Text" 
+                                           Color="Color.Error" 
+                                           OnClick="LogoutAllDevicesAsync"
+                                           Disabled="_isSaving">
+                                    Logout from All Devices
+                                </MudButton>
+                            </MudCardContent>
+                        </MudTabPanel>
+                        
+                        <!-- Preferences Tab -->
+                        <MudTabPanel Text="Preferences">
+                            <MudCardContent>
+                                <MudText Typo="Typo.h6" Class="mb-3">Appearance</MudText>
+                                <MudSelect T="string"
+                                           Value="@ProfileData.ThemePreference" 
+                                           Label="Theme" 
+                                           Variant="Variant.Outlined" 
+                                           Disabled="!IsEditMode"
+                                           ValueChanged="@((string value) => OnThemeChanged(value))"
+                                           Class="mb-3">
+                                    <MudSelectItem Value="@("System")">System Default</MudSelectItem>
+                                    <MudSelectItem Value="@("Light")">Light</MudSelectItem>
+                                    <MudSelectItem Value="@("Dark")">Dark</MudSelectItem>
+                                </MudSelect>
+                                
+                                <MudDivider Class="my-4" />
+                                
+                                <MudText Typo="Typo.h6" Class="mb-3">Language</MudText>
+                                <MudSelect @bind-Value="ProfileData.Language" 
+                                           Label="Language" 
+                                           Variant="Variant.Outlined" 
+                                           Disabled="!IsEditMode"
+                                           Class="mb-3">
+                                    <MudSelectItem Value="@("English")">English</MudSelectItem>
+                                    <MudSelectItem Value="@("Spanish")">Español</MudSelectItem>
+                                    <MudSelectItem Value="@("French")">Français</MudSelectItem>
+                                    <MudSelectItem Value="@("German")">Deutsch</MudSelectItem>
+                                </MudSelect>
+                            </MudCardContent>
+                        </MudTabPanel>
+                        
+                        <!-- Notifications Tab -->
+                        <MudTabPanel Text="Notifications">
+                            <MudCardContent>
+                                <MudText Typo="Typo.h6" Class="mb-3">Daily Reminder</MudText>
+                                <MudTimePicker @bind-Time="_dailyReminderTime" 
+                                               Label="Reminder Time" 
+                                               Variant="Variant.Outlined" 
+                                               Disabled="!IsEditMode"
+                                               Class="mb-3" />
+                                
+                                <MudDivider Class="my-4" />
+                                
+                                <MudText Typo="Typo.h6" Class="mb-3">Streak Notifications</MudText>
+                                <MudSwitch @bind-Value="ProfileData.StreakWarningEnabled" 
+                                           Label="Warn me 2 hours before streak ends" 
+                                           Color="Color.Primary" 
+                                           Disabled="!IsEditMode" />
+                                
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
+                                    You'll receive a notification at 10 PM (2 hours before midnight) if you haven't journaled today.
+                                </MudText>
+                            </MudCardContent>
+                        </MudTabPanel>
+                    </MudTabs>
+                </MudCard>
+            </MudItem>
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+[Inject] private ProfileService ProfileService { get; set; } = null!;
+[Inject] private JournalDatabases JournalDb { get; set; } = null!;
+[Inject] private StreakService StreakService { get; set; } = null!;
+[Inject] private NotificationService NotificationService { get; set; } = null!;
+[Inject] private AppState AppState { get; set; } = null!;
+[Inject] private ISnackbar Snackbar { get; set; } = null!;
+[Inject] private AuthService AuthService { get; set; } = null!;
+[Inject] private NavigationManager NavManager { get; set; } = null!;
+
+private ProfileViewModel? ProfileData { get; set; }
+private ProfileViewModel? OriginalProfile { get; set; }
+    
+private bool IsEditMode { get; set; } = false;
+private bool _isLoading = true;
+private bool _isSaving = false;
+    
+private MudForm? _form;
+    
+private int _totalEntries = 0;
+private int _currentStreak = 0;
+    
+private string _currentPassword = "";
+private string _newPassword = "";
+private string _confirmPassword = "";
+    
+private TimeSpan? _dailyReminderTime;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProfileAsync();
+        await LoadStatsAsync();
+        _isLoading = false;
+    }
+
+    private async Task LoadProfileAsync()
+    {
+        try
+        {
+            var displayName = await ProfileService.GetDisplayNameAsync();
+            var email = await ProfileService.GetEmailAsync();
+            var joinDate = await ProfileService.GetJoinDateAsync();
+            
+            var userProfile = await ProfileService.GetAsync();
+            
+            ProfileData = new ProfileViewModel
+            {
+                DisplayName = displayName,
+                Email = email,
+                JoinDate = joinDate,
+                AvatarBase64 = userProfile.AvatarBase64,
+                TimeZoneId = userProfile.TimeZoneId,
+                ThemePreference = userProfile.ThemePreference,
+                Language = userProfile.Language,
+                AppLockEnabled = userProfile.AppLockEnabled,
+                DailyReminderTime = userProfile.DailyReminderTime,
+                StreakWarningEnabled = userProfile.StreakWarningEnabled
+            };
+            
+            OriginalProfile = DeepCopy(ProfileData);
+            
+            if (!string.IsNullOrEmpty(ProfileData.DailyReminderTime))
+            {
+                if (TimeSpan.TryParse(ProfileData.DailyReminderTime, out var time))
+                {
+                    _dailyReminderTime = time;
+                }
+            }
+            
+            ApplyTheme(ProfileData.ThemePreference);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading profile: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task LoadStatsAsync()
+    {
+        try
+        {
+            _totalEntries = await ProfileService.GetTotalEntriesCountAsync(JournalDb);
+            
+            var streakResult = await StreakService.CalculateStreaksAsync();
+            _currentStreak = streakResult.CurrentStreak;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error loading stats: {ex.Message}");
+        }
+    }
+
+    private void EnableEditMode()
+    {
+        IsEditMode = true;
+    }
+
+    private async Task SaveProfile()
+    {
+        if (_form == null || ProfileData == null)
+            return;
+
+        await _form.Validate();
+        if (!_form.IsValid)
+        {
+            Snackbar.Add("Please fix validation errors", Severity.Warning);
+            return;
+        }
+
+        _isSaving = true;
+        
+        try
+        {
+            if (_dailyReminderTime.HasValue)
+            {
+                ProfileData.DailyReminderTime = _dailyReminderTime.Value.ToString(@"hh\:mm");
+            }
+            else
+            {
+                ProfileData.DailyReminderTime = null;
+            }
+
+            var userInfoUpdated = await ProfileService.UpdateUserInfoAsync(
+                ProfileData.DisplayName, 
+                ProfileData.Email);
+
+            var userProfile = new UserProfile
+            {
+                Id = 1,
+                AvatarBase64 = ProfileData.AvatarBase64,
+                TimeZoneId = ProfileData.TimeZoneId,
+                ThemePreference = ProfileData.ThemePreference,
+                Language = ProfileData.Language,
+                AppLockEnabled = ProfileData.AppLockEnabled,
+                DailyReminderTime = ProfileData.DailyReminderTime,
+                StreakWarningEnabled = ProfileData.StreakWarningEnabled
+            };
+
+            var prefsSuccess = await ProfileService.SaveAsync(userProfile);
+            
+            if (userInfoUpdated && prefsSuccess)
+            {
+                OriginalProfile = DeepCopy(ProfileData);
+                IsEditMode = false;
+                
+                await NotificationService.ScheduleStreakWarningAsync(
+                    ProfileData.TimeZoneId, 
+                    ProfileData.StreakWarningEnabled);
+                
+                await NotificationService.ScheduleDailyReminderAsync(
+                    ProfileData.DailyReminderTime, 
+                    ProfileData.TimeZoneId, 
+                    !string.IsNullOrEmpty(ProfileData.DailyReminderTime));
+                
+                Snackbar.Add("Profile saved successfully", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Failed to save profile", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving profile: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task ChangePinAsync()
+    {
+        if (!IsEditMode || ProfileData == null)
+            return;
+
+        // Validate inputs
+        if (string.IsNullOrWhiteSpace(_currentPassword))
+        {
+            Snackbar.Add("Please enter your current PIN", Severity.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_newPassword))
+        {
+            Snackbar.Add("Please enter a new PIN", Severity.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_confirmPassword))
+        {
+            Snackbar.Add("Please confirm your new PIN", Severity.Warning);
+            return;
+        }
+
+        // Validate PIN format
+        if (_currentPassword.Length != 4 || !_currentPassword.All(char.IsDigit))
+        {
+            Snackbar.Add("Current PIN must be exactly 4 digits", Severity.Warning);
+            return;
+        }
+
+        if (_newPassword.Length != 4 || !_newPassword.All(char.IsDigit))
+        {
+            Snackbar.Add("New PIN must be exactly 4 digits", Severity.Warning);
+            return;
+        }
+
+        if (_confirmPassword.Length != 4 || !_confirmPassword.All(char.IsDigit))
+        {
+            Snackbar.Add("Confirm PIN must be exactly 4 digits", Severity.Warning);
+            return;
+        }
+
+        // Validate new == confirm
+        if (_newPassword != _confirmPassword)
+        {
+            Snackbar.Add("New PIN and Confirm PIN do not match", Severity.Warning);
+            return;
+        }
+
+        // Validate new != current
+        if (_newPassword == _currentPassword)
+        {
+            Snackbar.Add("New PIN must be different from current PIN", Severity.Warning);
+            return;
+        }
+
+        _isSaving = true;
+
+        try
+        {
+            var success = await AuthService.ChangePinAsync(_currentPassword, _newPassword);
+
+            if (success)
+            {
+                // Clear all password fields immediately
+                _currentPassword = "";
+                _newPassword = "";
+                _confirmPassword = "";
+
+                Snackbar.Add("PIN changed successfully!", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Failed to change PIN. Please verify your current PIN is correct.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"ChangePinAsync error: {ex.Message}");
+            Snackbar.Add($"Error changing PIN: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task LogoutAllDevicesAsync()
+    {
+        try
+        {
+            // Show confirmation snackbar
+            Snackbar.Add(
+                "?? This will clear ALL data and require re-registration!",
+                Severity.Warning);
+
+            // Simple confirmation - in production you might use a dialog
+            await Task.Delay(100);
+
+            _isSaving = true;
+
+            // Logout from all devices
+            await AuthService.LogoutAllDevicesAsync();
+
+            // Update app state
+            AppState.Logout();
+
+            Snackbar.Add("Logged out from all devices. Redirecting...", Severity.Success);
+
+            // Navigate to first-time setup
+            await Task.Delay(1000);
+            NavManager.NavigateTo("/first-time-setup", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"LogoutAllDevicesAsync error: {ex.Message}");
+            Snackbar.Add($"Error during logout: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void ClearPasswordFields()
+    {
+        _currentPassword = "";
+        _newPassword = "";
+        _confirmPassword = "";
+    }
+
+    private void CancelEdit()
+    {
+        if (ProfileData == null || OriginalProfile == null)
+            return;
+
+        ProfileData = DeepCopy(OriginalProfile);
+        
+        if (!string.IsNullOrEmpty(ProfileData.DailyReminderTime))
+        {
+            if (TimeSpan.TryParse(ProfileData.DailyReminderTime, out var time))
+            {
+                _dailyReminderTime = time;
+            }
+        }
+        else
+        {
+            _dailyReminderTime = null;
+        }
+        
+        ApplyTheme(OriginalProfile.ThemePreference);
+        
+        IsEditMode = false;
+        
+        // Clear password fields when canceling
+        ClearPasswordFields();
+    }
+
+    private async Task OnChangePhotoClick()
+    {
+        if (!IsEditMode || ProfileData == null)
+        {
+            System.Diagnostics.Debug.WriteLine("OnChangePhotoClick: Not in edit mode or ProfileData is null");
+            Snackbar.Add("Please enable edit mode first", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            System.Diagnostics.Debug.WriteLine("OnChangePhotoClick: Starting file picker...");
+            
+            // Define custom file types for all platforms
+            var customFileType = new FilePickerFileType(
+                new Dictionary<DevicePlatform, IEnumerable<string>>
+                {
+                    { DevicePlatform.iOS, new[] { "public.image" } },
+                    { DevicePlatform.Android, new[] { "image/*" } },
+                    { DevicePlatform.WinUI, new[] { ".jpg", ".jpeg", ".png", ".webp" } },
+                    { DevicePlatform.MacCatalyst, new[] { "public.image" } }
+                });
+
+            var options = new PickOptions
+            {
+                PickerTitle = "Select a profile photo",
+                FileTypes = customFileType
+            };
+
+            var result = await FilePicker.Default.PickAsync(options);
+            
+            if (result == null)
+            {
+                System.Diagnostics.Debug.WriteLine("OnChangePhotoClick: User cancelled file picker");
+                return;
+            }
+            
+            System.Diagnostics.Debug.WriteLine($"OnChangePhotoClick: File selected: {result.FileName}, ContentType: {result.ContentType}");
+            
+            using var stream = await result.OpenReadAsync();
+            
+            System.Diagnostics.Debug.WriteLine($"OnChangePhotoClick: Stream length: {stream.Length} bytes");
+            
+            if (stream.Length > 2 * 1024 * 1024)
+            {
+                Snackbar.Add("File size must be less than 2MB", Severity.Warning);
+                System.Diagnostics.Debug.WriteLine($"OnChangePhotoClick: File too large");
+                return;
+            }
+
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            var bytes = ms.ToArray();
+            
+            ProfileData.AvatarBase64 = Convert.ToBase64String(bytes);
+            System.Diagnostics.Debug.WriteLine($"OnChangePhotoClick: Avatar updated, Base64 length: {ProfileData.AvatarBase64.Length}");
+            
+            // Force UI update
+            await InvokeAsync(StateHasChanged);
+            
+            Snackbar.Add("Photo selected successfully! Click Save to keep it.", Severity.Success);
+        }
+        catch (PermissionException pex)
+        {
+            System.Diagnostics.Debug.WriteLine($"OnChangePhotoClick: Permission error: {pex.Message}");
+            Snackbar.Add("Permission denied. Please grant storage/photo access in your device settings.", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"OnChangePhotoClick: Error: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"OnChangePhotoClick: Stack trace: {ex.StackTrace}");
+            Snackbar.Add($"Error selecting image: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void OnThemeChanged(string newTheme)
+    {
+        if (ProfileData == null || !IsEditMode)
+            return;
+
+        ProfileData.ThemePreference = newTheme;
+        ApplyTheme(newTheme);
+    }
+
+    private void ApplyTheme(string themePreference)
+    {
+        switch (themePreference)
+        {
+            case "Dark":
+                AppState.Set(true);
+                break;
+            case "Light":
+                AppState.Set(false);
+                break;
+            case "System":
+            default:
+                var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
+                AppState.Set(isDark);
+                break;
+        }
+    }
+
+    private string GetInitials(string displayName)
+    {
+        if (string.IsNullOrEmpty(displayName))
+            return "JU";
+
+        var parts = displayName.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0)
+            return "JU";
+
+        if (parts.Length == 1)
+            return parts[0].Substring(0, Math.Min(2, parts[0].Length)).ToUpper();
+
+        return (parts[0][0].ToString() + parts[^1][0].ToString()).ToUpper();
+    }
+
+    private string GetJoinDateDisplay()
+    {
+        if (ProfileData == null)
+            return "";
+        
+        return ProfileData.JoinDate.ToLocalTime().ToString("MMMM dd, yyyy");
+    }
+
+    private ProfileViewModel DeepCopy(ProfileViewModel source)
+    {
+        return new ProfileViewModel
+        {
+            DisplayName = source.DisplayName,
+            Email = source.Email,
+            JoinDate = source.JoinDate,
+            AvatarBase64 = source.AvatarBase64,
+            TimeZoneId = source.TimeZoneId,
+            ThemePreference = source.ThemePreference,
+            Language = source.Language,
+            AppLockEnabled = source.AppLockEnabled,
+            DailyReminderTime = source.DailyReminderTime,
+            StreakWarningEnabled = source.StreakWarningEnabled
+        };
+    }
+}
+

@@ -43,6 +43,13 @@ namespace MyJournal.Services
             NotifyStateChanged();
         }
 
+        public void Set(bool isDarkMode)
+        {
+            IsDarkMode = isDarkMode;
+            Preferences.Default.Set(DarkModeKey, IsDarkMode);
+            NotifyStateChanged();
+        }
+
         private void NotifyStateChanged() => OnChange?.Invoke();
     }
 }
