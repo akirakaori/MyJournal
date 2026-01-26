@@ -26,9 +26,9 @@ public class CalendarDb
         return DateTime.Parse(iso, null, System.Globalization.DateTimeStyles.RoundtripKind);
     }
 
-    public Task<CalendarEvents?> GetByIdAsync(string id)
+    public async Task<CalendarEvents?> GetByIdAsync(string id)
     {
-        return _db.Table<CalendarEvents>()
+        return await _db.Table<CalendarEvents>()
                   .Where(x => x.Id == id)
                   .FirstOrDefaultAsync();
     }
@@ -62,13 +62,16 @@ public class CalendarDb
         bool allDay,
         string? notes)
     {
-        var now = DateTime.Now;
+        var now = DateTime.UtcNow; // Use UTC for consistent timestamp storage
 
         title = (title ?? "").Trim();
         if (string.IsNullOrWhiteSpace(title))
             throw new ArgumentException("Title is required.", nameof(title));
 
         var safeId = string.IsNullOrWhiteSpace(id) ? Guid.NewGuid().ToString() : id;
+
+        // Convert HTML notes to plain text before saving
+        var plainTextNotes = string.IsNullOrWhiteSpace(notes) ? null : TextSanitizer.ConvertHtmlToPlainText(notes);
 
         var existing = await _db.Table<CalendarEvents>()
                                 .Where(x => x.Id == safeId)
@@ -83,7 +86,7 @@ public class CalendarDb
                 StartIso = ToIso(start),
                 EndIso = end is null ? null : ToIso(end.Value),
                 AllDay = allDay,
-                Notes = notes,
+                Notes = plainTextNotes,
                 CreatedAt = now,
                 UpdatedAt = now
             };
@@ -96,7 +99,7 @@ public class CalendarDb
             existing.StartIso = ToIso(start);
             existing.EndIso = end is null ? null : ToIso(end.Value);
             existing.AllDay = allDay;
-            existing.Notes = notes;
+            existing.Notes = plainTextNotes;
             existing.UpdatedAt = now;
 
             await _db.UpdateAsync(existing);

@@ -194,7 +194,7 @@ public class PdfExportService
             }
 
             // Timestamp
-            column.Item().PaddingTop(8).Text($"Created: {entry.CreatedAt:MMM d, yyyy h:mm tt}")
+            column.Item().PaddingTop(8).Text($"Created: {entry.CreatedAtDateTime:MMM d, yyyy h:mm tt}")
                 .FontSize(8).FontColor(QuestPDF.Helpers.Colors.Grey.Darken1);
         });
     }

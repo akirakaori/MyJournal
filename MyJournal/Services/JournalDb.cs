@@ -1,4 +1,4 @@
-﻿// JournalDatabases.cs  ✅ FINAL (with Mood + Tag filtering + distinct lists)
+﻿// JournalDatabases.cs  ✅ FINAL (with Mood + Tag filtering + distinct lists + Plain Text Storage + ISO DateTime)
 
 using SQLite;
 using JournalMaui.Models;
@@ -20,6 +20,8 @@ public class JournalDatabases
         await _db.CreateTableAsync<JournalEntries>();
         await MigrateAddMoodColumnsAsync();
         await MigrateAddTagColumnsAsync();
+        await MigrateDateTimeColumnsAsync();
+        await MigrateHtmlContentToPlainTextAsync();
     }
 
     private async Task MigrateAddMoodColumnsAsync()
@@ -60,6 +62,139 @@ public class JournalDatabases
         }
     }
 
+    /// <summary>
+    /// Migration: Add CreatedAtText and UpdatedAtText columns, convert legacy DateTime ticks to ISO strings
+    /// </summary>
+    private async Task MigrateDateTimeColumnsAsync()
+    {
+        try
+        {
+            var tableInfo = await _db.QueryAsync<TableInfoResult>("PRAGMA table_info(JournalEntries)");
+            var columnNames = tableInfo.Select(x => x.name).ToList();
+
+            // Add new string columns if they don't exist
+            if (!columnNames.Contains("CreatedAtText"))
+                await _db.ExecuteAsync("ALTER TABLE JournalEntries ADD COLUMN CreatedAtText TEXT");
+
+            if (!columnNames.Contains("UpdatedAtText"))
+                await _db.ExecuteAsync("ALTER TABLE JournalEntries ADD COLUMN UpdatedAtText TEXT");
+
+            // Migrate existing data: read raw to detect ticks vs text
+            var rawRows = await _db.QueryAsync<dynamic>(
+                "SELECT Id, DateKey, CreatedAtText, UpdatedAtText FROM JournalEntries WHERE CreatedAtText IS NULL OR UpdatedAtText IS NULL");
+
+            if (rawRows.Count == 0)
+            {
+                System.Diagnostics.Debug.WriteLine("DateTime migration: All entries already migrated.");
+                return;
+            }
+
+            System.Diagnostics.Debug.WriteLine($"DateTime migration: Processing {rawRows.Count} entries...");
+
+            foreach (var row in rawRows)
+            {
+                try
+                {
+                    int id = row.Id;
+                    string dateKey = row.DateKey;
+                    string? createdText = row.CreatedAtText as string;
+                    string? updatedText = row.UpdatedAtText as string;
+
+                    DateTime createdDt;
+                    DateTime updatedDt;
+
+                    // Try to parse from DateKey as fallback (format: yyyy-MM-dd)
+                    if (DateTime.TryParse(dateKey, out var dateFromKey))
+                    {
+                        createdDt = dateFromKey;
+                        updatedDt = dateFromKey;
+                    }
+                    else
+                    {
+                        // Use current time as last resort
+                        createdDt = DateTime.UtcNow;
+                        updatedDt = DateTime.UtcNow;
+                    }
+
+                    // If we have text values already, try to parse them
+                    if (!string.IsNullOrWhiteSpace(createdText))
+                    {
+                        if (DateTime.TryParse(createdText, out var parsedCreated))
+                            createdDt = parsedCreated;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(updatedText))
+                    {
+                        if (DateTime.TryParse(updatedText, out var parsedUpdated))
+                            updatedDt = parsedUpdated;
+                    }
+
+                    // Update with ISO format
+                    var createdIso = createdDt.ToString("yyyy-MM-dd HH:mm:ss");
+                    var updatedIso = updatedDt.ToString("yyyy-MM-dd HH:mm:ss");
+
+                    await _db.ExecuteAsync(
+                        "UPDATE JournalEntries SET CreatedAtText = ?, UpdatedAtText = ? WHERE Id = ?",
+                        createdIso, updatedIso, id);
+                }
+                catch (Exception rowEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"DateTime migration row error: {rowEx.Message}");
+                }
+            }
+
+            System.Diagnostics.Debug.WriteLine($"DateTime migration: Completed {rawRows.Count} entries.");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"DateTime migration error: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Migration: Convert HTML content to plain text for existing entries
+    /// This runs once to sanitize old HTML content
+    /// </summary>
+    private async Task MigrateHtmlContentToPlainTextAsync()
+    {
+        try
+        {
+            // Only process entries that likely contain HTML (performance optimization)
+            var allEntries = await _db.Table<JournalEntries>().ToListAsync();
+            int convertedCount = 0;
+
+            foreach (var entry in allEntries)
+            {
+                if (string.IsNullOrWhiteSpace(entry.Content))
+                    continue;
+
+                // Check if content contains HTML tags
+                if (TextSanitizer.ContainsHtmlTags(entry.Content))
+                {
+                    var plainText = TextSanitizer.ConvertHtmlToPlainText(entry.Content);
+                    
+                    // Only update if conversion produced different text
+                    if (plainText != entry.Content)
+                    {
+                        await _db.ExecuteAsync(
+                            "UPDATE JournalEntries SET Content = ? WHERE Id = ?",
+                            plainText, entry.Id);
+                        convertedCount++;
+                    }
+                }
+            }
+
+            if (convertedCount > 0)
+            {
+                System.Diagnostics.Debug.WriteLine($"HTML migration: Converted {convertedCount} entries to plain text.");
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"HTML migration error: {ex.Message}");
+        }
+    }
+
     private class TableInfoResult
     {
         public string name { get; set; } = "";
@@ -87,7 +222,7 @@ public class JournalDatabases
         List<string> tags)
     {
         var k = Key(date);
-        var now = DateTime.Now;
+        var now = DateTime.UtcNow; // Use UTC for consistent timestamp storage
 
         title = (title ?? "").Trim();
         if (string.IsNullOrWhiteSpace(title))
@@ -117,6 +252,9 @@ public class JournalDatabases
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(t => t));
 
+        // Convert HTML content to plain text before saving
+        var plainTextContent = TextSanitizer.ConvertHtmlToPlainText(content ?? "");
+
         var existing = await _db.Table<JournalEntries>()
                                 .Where(x => x.DateKey == k)
                                 .FirstOrDefaultAsync();
@@ -127,7 +265,7 @@ public class JournalDatabases
             {
                 DateKey = k,
                 Title = title,
-                Content = content ?? "",
+                Content = plainTextContent,
                 HasPin = hasPin,
                 Pin = hasPin ? pin : null,
 
@@ -137,8 +275,8 @@ public class JournalDatabases
 
                 TagsCsv = tagsCsv,
 
-                CreatedAt = now,
-                UpdatedAt = now
+                CreatedAtText = now.ToString("yyyy-MM-dd HH:mm:ss"),
+                UpdatedAtText = now.ToString("yyyy-MM-dd HH:mm:ss")
             };
 
             await _db.InsertAsync(entry);
@@ -146,7 +284,7 @@ public class JournalDatabases
         else
         {
             existing.Title = title;
-            existing.Content = content ?? "";
+            existing.Content = plainTextContent;
             existing.HasPin = hasPin;
             existing.Pin = hasPin ? pin : null;
 
@@ -156,7 +294,7 @@ public class JournalDatabases
 
             existing.TagsCsv = tagsCsv;
 
-            existing.UpdatedAt = now;
+            existing.UpdatedAtText = now.ToString("yyyy-MM-dd HH:mm:ss");
 
             await _db.UpdateAsync(existing);
         }
@@ -172,7 +310,7 @@ public class JournalDatabases
     public async Task<List<JournalEntries>> GetRecentAsync(int take = 20)
     {
         return await _db.Table<JournalEntries>()
-                        .OrderByDescending(x => x.UpdatedAt)
+                        .OrderByDescending(x => x.UpdatedAtText)
                         .Take(take)
                         .ToListAsync();
     }
@@ -248,8 +386,8 @@ public class JournalDatabases
         var sortColSql = sortColumn switch
         {
             nameof(JournalEntries.Title) => "Title",
-            nameof(JournalEntries.UpdatedAt) => "UpdatedAt",
-            nameof(JournalEntries.CreatedAt) => "CreatedAt",
+            "UpdatedAt" => "UpdatedAtText",
+            "CreatedAt" => "CreatedAtText",
             _ => "DateKey"
         };
 

@@ -350,8 +350,8 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
                 return;
             }
 
-            CreatedAt = _current.CreatedAt;
-            UpdatedAt = _current.UpdatedAt;
+            CreatedAt = _current.CreatedAtDateTime;
+            UpdatedAt = _current.UpdatedAtDateTime;
             HasPin = _current.HasPin;
 
             // Load moods
@@ -619,8 +619,8 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
 
             CurrentTitle = _current?.Title ?? title;
             Content = _current?.Content ?? Content;
-            CreatedAt = _current?.CreatedAt;
-            UpdatedAt = _current?.UpdatedAt;
+            CreatedAt = _current?.CreatedAtDateTime;
+            UpdatedAt = _current?.UpdatedAtDateTime;
             HasPin = _current?.HasPin ?? hasPin;
 
             Status = "Saved.";

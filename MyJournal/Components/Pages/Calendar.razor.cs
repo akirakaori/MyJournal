@@ -14,7 +14,7 @@ public partial class Calendar : ComponentBase, IAsyncDisposable
     [Inject] private CalendarDb CalendarDb { get; set; } = default!;
     [Inject] private JournalDatabases JournalDb { get; set; } = default!;
 
-    // ✅ popup dialog service
+    //  popup dialog service
     [Inject] private IDialogService DialogService { get; set; } = default!;
 
     [SupplyParameterFromQuery(Name = "refresh")]
@@ -95,7 +95,7 @@ public partial class Calendar : ComponentBase, IAsyncDisposable
 
     private static bool IsFutureDate(DateTime d) => d.Date > DateTime.Today;
 
-    // ✅ single popup function
+    //  single popup function
     private Task ShowFutureDateAlert()
     {
         var options = new DialogOptions
