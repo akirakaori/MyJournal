@@ -29,6 +29,8 @@ namespace MyJournal
             builder.Services.AddMudServices();
 
             // Register services
+            builder.Services.AddSingleton<DashboardState>();
+
             builder.Services.AddSingleton<ThemeState>();
             builder.Services.AddSingleton<MyJournal.Services.AppState>();
             builder.Services.AddSingleton<AuthService>();

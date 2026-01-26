@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Components;
+﻿// ViewJournals.razor.cs
+using Microsoft.AspNetCore.Components;
 using JournalMaui.Services;
 using JournalMaui.Models;
 using MyJournal.Services;
@@ -16,40 +17,35 @@ public partial class ViewJournal : ComponentBase
 
     private bool IsPinVerifying = false;
 
-
-
-    // Results for current page ONLY (from backend)
     private List<JournalEntries> Entries = new();
     private bool IsLoading = true;
 
-    // backend filter inputs
     private string SearchTitle = "";
     private DateTime? FromDate = null;
     private DateTime? ToDate = null;
 
-    // backend total count for current filter
+    // ✅ NEW: filter lists + selected
+    private List<string> AllMoods = new();
+    private List<string> AllTags = new();
+    private HashSet<string> SelectedMoods = new(StringComparer.OrdinalIgnoreCase);
+    private HashSet<string> SelectedTags = new(StringComparer.OrdinalIgnoreCase);
+
     private int TotalCount = 0;
 
-    // sorting (backend)
     private string SortColumn = nameof(JournalEntries.DateKey);
     private bool SortAscending = false;
 
-    // paging (backend)
     private int PageSize = 5;
     private int CurrentPage = 1;
 
-    // delete confirmation (non-PIN)
     private bool ShowDeleteConfirm = false;
     private string PendingDeleteDateKey = "";
     private bool IsDeleting = false;
 
-    // detail view
     private bool ShowDetailView = false;
     private JournalEntries? SelectedEntry = null;
 
-    // ----------------------------
     // Export PDF Dialog
-    // ----------------------------
     private bool ShowExportDialog = false;
     private string ExportStatus = "";
     private bool ExportSuccess = false;
@@ -72,7 +68,6 @@ public partial class ViewJournal : ComponentBase
         ExportSuccess = true;
         StateHasChanged();
 
-        // Auto-clear the success message after 10 seconds
         _ = Task.Run(async () =>
         {
             await Task.Delay(10000);
@@ -91,49 +86,75 @@ public partial class ViewJournal : ComponentBase
         return Task.CompletedTask;
     }
 
-    // ----------------------------
-    // PIN Prompt (for protected actions)
-    // ----------------------------
+    // PIN Prompt
     private bool ShowPinModal = false;
     private string PinInput = "";
     private string PinError = "";
     private string PendingPinDateKey = "";
     private JournalEntries? PendingPinEntry = null;
 
-    // Force Delete confirm (when forgot PIN)
     private bool ShowForceDeleteConfirm = false;
     private bool IsForceDeleting = false;
 
-    private enum PinAction
-    {
-        View,
-        Edit,
-        Delete
-    }
-
+    private enum PinAction { View, Edit, Delete }
     private PinAction PendingPinAction;
 
     protected override async Task OnInitializedAsync()
     {
+        // ✅ load unique moods/tags once
+        AllMoods = await Db.GetDistinctMoodsAsync();
+        AllTags = await Db.GetDistinctTagsAsync();
+
+        await ReloadAsync();
+    }
+
+    // ✅ Mood/Tag toggle
+    private async Task ToggleMood(string mood)
+    {
+        if (SelectedMoods.Contains(mood)) SelectedMoods.Remove(mood);
+        else SelectedMoods.Add(mood);
+
+        CurrentPage = 1;
+        await ReloadAsync();
+    }
+
+    private async Task ToggleTag(string tag)
+    {
+        if (SelectedTags.Contains(tag)) SelectedTags.Remove(tag);
+        else SelectedTags.Add(tag);
+
+        CurrentPage = 1;
+        await ReloadAsync();
+    }
+
+    private async Task ClearMoodFilter()
+    {
+        SelectedMoods.Clear();
+        CurrentPage = 1;
+        await ReloadAsync();
+    }
+
+    private async Task ClearTagFilter()
+    {
+        SelectedTags.Clear();
+        CurrentPage = 1;
         await ReloadAsync();
     }
 
     // ============================================================
-    // Backend reload (filter + date range + sort + paging)
+    // Reload
     // ============================================================
     private async Task ReloadAsync()
     {
         IsLoading = true;
         try
         {
-            // IMPORTANT:
-            // Db.SearchAsync must return an object like:
-            //   new { List<JournalEntries> Items, int TotalCount }
-            // or a class with Items + TotalCount.
             var result = await Db.SearchAsync(
                 titleContains: string.IsNullOrWhiteSpace(SearchTitle) ? null : SearchTitle.Trim(),
                 fromDate: FromDate,
                 toDate: ToDate,
+                moods: SelectedMoods.Count == 0 ? null : SelectedMoods.ToList(),
+                tags: SelectedTags.Count == 0 ? null : SelectedTags.ToList(),
                 sortColumn: SortColumn,
                 sortAscending: SortAscending,
                 page: CurrentPage,
@@ -143,7 +164,6 @@ public partial class ViewJournal : ComponentBase
             Entries = result.Items ?? new List<JournalEntries>();
             TotalCount = result.TotalCount;
 
-            // clamp current page if filters reduced total pages
             var totalPages = TotalPages;
             if (CurrentPage > totalPages) CurrentPage = totalPages;
             if (CurrentPage < 1) CurrentPage = 1;
@@ -154,9 +174,7 @@ public partial class ViewJournal : ComponentBase
         }
     }
 
-    // ============================================================
-    // Date helpers (bind to <input type="date">)
-    // ============================================================
+    // Date helpers
     private string FromDateText => FromDate.HasValue ? FromDate.Value.ToString("yyyy-MM-dd") : "";
     private string ToDateText => ToDate.HasValue ? ToDate.Value.ToString("yyyy-MM-dd") : "";
 
@@ -195,9 +213,7 @@ public partial class ViewJournal : ComponentBase
         return null;
     }
 
-    // ============================================================
-    // Sorting (backend)
-    // ============================================================
+    // Sorting
     private async Task SortBy(string column)
     {
         if (SortColumn == column)
@@ -220,18 +236,8 @@ public partial class ViewJournal : ComponentBase
         return SortAscending ? new MarkupString(" ▲") : new MarkupString(" ▼");
     }
 
-    // ============================================================
-    // Paging (backend)
-    // ============================================================
-    private int TotalPages
-    {
-        get
-        {
-            if (TotalCount <= 0) return 1;
-            return (int)Math.Ceiling(TotalCount / (double)PageSize);
-        }
-    }
-
+    // Paging
+    private int TotalPages => TotalCount <= 0 ? 1 : (int)Math.Ceiling(TotalCount / (double)PageSize);
     private int StartRow => TotalCount == 0 ? 0 : ((CurrentPage - 1) * PageSize) + 1;
     private int EndRow => Math.Min(CurrentPage * PageSize, TotalCount);
 
@@ -297,9 +303,7 @@ public partial class ViewJournal : ComponentBase
         }
     }
 
-    // ============================================================
-    // Search (backend)
-    // ============================================================
+    // Search
     private async Task OnSearchInput(ChangeEventArgs e)
     {
         SearchTitle = e?.Value?.ToString() ?? "";
@@ -307,9 +311,7 @@ public partial class ViewJournal : ComponentBase
         await ReloadAsync();
     }
 
-    // ============================================================
-    // Detail view (ONLY for non-pin OR after PIN success)
-    // ============================================================
+    // Detail view
     private void ViewEntry(JournalEntries entry)
     {
         SelectedEntry = entry;
@@ -331,9 +333,7 @@ public partial class ViewJournal : ComponentBase
         }
     }
 
-    // ============================================================
-    // Protected action wrappers
-    // ============================================================
+    // Protected wrappers
     private void RequestView(JournalEntries entry)
     {
         if (entry.HasPin)
@@ -404,7 +404,6 @@ public partial class ViewJournal : ComponentBase
             return;
         }
 
-        //  Auto-submit when 4 chars typed
         if (PinInput.Length == 4 && !IsPinVerifying)
         {
             IsPinVerifying = true;
@@ -418,7 +417,6 @@ public partial class ViewJournal : ComponentBase
             }
         }
     }
-
 
     private async Task ConfirmPin()
     {
@@ -443,17 +441,14 @@ public partial class ViewJournal : ComponentBase
             return;
         }
 
-        // PIN OK
         ShowPinModal = false;
 
         var action = PendingPinAction;
-        var entry = PendingPinEntry;
         var dateKey = PendingPinDateKey;
 
         // remember unlock for journalentry page
         PinUnlock.Unlock(dateKey, TimeSpan.FromMinutes(5));
 
-        // cleanup
         PendingPinEntry = null;
         PendingPinDateKey = "";
         PinInput = "";
@@ -461,13 +456,9 @@ public partial class ViewJournal : ComponentBase
 
         if (action == PinAction.View)
         {
-            // unlock temporarily
             PinUnlock.Unlock(dateKey, TimeSpan.FromMinutes(5));
-
-            // load full content from DB and preview
             await LoadAndPreviewAsync(dateKey);
         }
-
         else if (action == PinAction.Edit)
         {
             Edit(dateKey);
@@ -495,11 +486,7 @@ public partial class ViewJournal : ComponentBase
         ShowDetailView = true;
     }
 
-
-
-    // ============================================================
-    // Force delete (forgot PIN)
-    // ============================================================
+    // Force delete
     private void OpenForceDeleteConfirm()
     {
         if (PendingPinEntry == null || string.IsNullOrWhiteSpace(PendingPinDateKey))
@@ -559,9 +546,7 @@ public partial class ViewJournal : ComponentBase
         return s;
     }
 
-    // ============================================================
     // Edit + Delete flows
-    // ============================================================
     private void Edit(string dateKey)
     {
         var url = $"/journalentry?date={Uri.EscapeDataString(dateKey)}";
@@ -605,9 +590,7 @@ public partial class ViewJournal : ComponentBase
         }
     }
 
-    // ============================================================
     // Helpers
-    // ============================================================
     private static string Trunc(string? s, int n)
     {
         s ??= "";

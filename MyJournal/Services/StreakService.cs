@@ -16,7 +16,6 @@ public class StreakService
     /// </summary>
     public async Task<StreakResult> CalculateStreaksAsync()
     {
-        // Get all entries ordered by date
         var allEntries = await GetAllEntriesOrderedByDateAsync();
 
         if (allEntries.Count == 0)
@@ -29,19 +28,14 @@ public class StreakService
             };
         }
 
-        // Extract distinct dates and sort them
         var entryDates = allEntries
             .Select(e => ParseDateKey(e.DateKey))
+            .Distinct()
             .OrderBy(d => d)
             .ToList();
 
-        // Calculate current streak
         int currentStreak = CalculateCurrentStreak(entryDates);
-
-        // Calculate longest streak
         int longestStreak = CalculateLongestStreak(entryDates);
-
-        // Calculate missed days
         int missedDays = CalculateMissedDays(entryDates);
 
         return new StreakResult
@@ -57,15 +51,17 @@ public class StreakService
     /// </summary>
     private async Task<List<JournalEntries>> GetAllEntriesOrderedByDateAsync()
     {
-        // Use search with no filters to get all entries
+        // Updated call: pass moods/tags as null (no filtering)
         var result = await _journalDb.SearchAsync(
             titleContains: null,
             fromDate: null,
             toDate: null,
-            sortColumn: "DateKey",
+            moods: null,
+            tags: null,
+            sortColumn: nameof(JournalEntries.DateKey),
             sortAscending: true,
             page: 1,
-            pageSize: 10000 // Large number to get all entries
+            pageSize: 10000
         );
 
         return result.Items;
@@ -80,7 +76,7 @@ public class StreakService
             return 0;
 
         var today = DateTime.Today;
-        var lastEntry = entryDates[^1]; // Last entry date
+        var lastEntry = entryDates[^1];
 
         // If last entry is not today or yesterday, streak is broken
         if (lastEntry < today.AddDays(-1))
@@ -89,12 +85,10 @@ public class StreakService
         int streak = 0;
         var checkDate = today;
 
-        // Start from today and count backwards
         for (int i = entryDates.Count - 1; i >= 0; i--)
         {
             var entryDate = entryDates[i];
 
-            // If entry matches the date we're checking
             if (entryDate == checkDate)
             {
                 streak++;
@@ -102,10 +96,8 @@ public class StreakService
             }
             else if (entryDate < checkDate)
             {
-                // Gap found, but check if we should continue (for today tolerance)
                 if (streak == 0 && checkDate == today)
                 {
-                    // If no entry today, check yesterday
                     checkDate = today.AddDays(-1);
                     if (entryDate == checkDate)
                     {
@@ -143,7 +135,6 @@ public class StreakService
             var prevDate = entryDates[i - 1];
             var currDate = entryDates[i];
 
-            // Check if dates are consecutive
             if (currDate == prevDate.AddDays(1))
             {
                 currentStreak++;
@@ -173,13 +164,9 @@ public class StreakService
             var prevDate = entryDates[i - 1];
             var currDate = entryDates[i];
 
-            // Calculate gap between consecutive entries
             int daysBetween = (int)(currDate - prevDate).TotalDays - 1;
-
             if (daysBetween > 0)
-            {
                 missedDays += daysBetween;
-            }
         }
 
         return missedDays;

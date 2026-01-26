@@ -1,4 +1,5 @@
-﻿@page "/viewjournals"
+﻿@* ViewJournals.razor *@
+@page "/viewjournals"
 @using JournalMaui.Models
 @using System.Globalization
 
@@ -6,54 +7,100 @@
 
     <section class="card">
         <div class="cardHeader">
-            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                <h2 class="cardTitle">Saved Journals</h2>
-                <span class="pill">@TotalCount</span>
+            <div class="headerLeft">
+                <div class="titleRow">
+                    <h2 class="cardTitle">Saved Journals</h2>
+                    <span class="pill">@TotalCount</span>
+                </div>
+
                 <button class="btn small" type="button" @onclick="OpenExportDialog" title="Export journals to PDF">
                     📄 Export PDF
                 </button>
             </div>
 
-            <div class="controls">
-                <input class="search"
-                       type="search"
-                       placeholder="Search by title…"
-                       value="@SearchTitle"
-                       @oninput="OnSearchInput" />
+            <div class="filtersGrid">
+                @* Row 1 *@
+                <div class="f-search">
+                    <label class="filterLabel">Search</label>
+                    <input class="search"
+                           type="search"
+                           placeholder="Search by title…"
+                           value="@SearchTitle"
+                           @oninput="OnSearchInput" />
+                </div>
 
-                <div class="dateRange">
-                    <div class="dateField">
-                        <label class="dateLabel">From</label>
+                <div class="f-mood">
+                    <label class="filterLabel">Mood</label>
+                    <div class="chipWrap">
+                        @foreach (var m in AllMoods)
+                        {
+                            var active = SelectedMoods.Contains(m);
+                            <button type="button"
+                                    class="chip @(active ? "active" : "")"
+                                    @onclick="() => ToggleMood(m)">
+                                @m
+                            </button>
+                        }
+                        @if (SelectedMoods.Count > 0)
+                        {
+                            <button class="chipClear" type="button" @onclick="ClearMoodFilter">Clear</button>
+                        }
+                    </div>
+                </div>
+
+                <div class="f-tags">
+                    <label class="filterLabel">Tags</label>
+                    <div class="chipWrap">
+                        @foreach (var t in AllTags)
+                        {
+                            var active = SelectedTags.Contains(t);
+                            <button type="button"
+                                    class="chip @(active ? "active" : "")"
+                                    @onclick="() => ToggleTag(t)">
+                                @t
+                            </button>
+                        }
+                        @if (SelectedTags.Count > 0)
+                        {
+                            <button class="chipClear" type="button" @onclick="ClearTagFilter">Clear</button>
+                        }
+                    </div>
+                </div>
+
+                @* Row 2 *@
+                <div class="f-dates">
+                    <label class="filterLabel">Date range</label>
+                    <div class="dateRange compact">
                         <input class="dateInput"
                                type="date"
                                value="@FromDateText"
                                @onchange="OnFromDateChanged" />
-                    </div>
 
-                    <div class="dateField">
-                        <label class="dateLabel">To</label>
+                        <span class="rangeDash">—</span>
+
                         <input class="dateInput"
                                type="date"
                                value="@ToDateText"
                                @onchange="OnToDateChanged" />
-                    </div>
 
-                    <button class="btn ghost small"
-                            type="button"
-                            @onclick="ClearDates"
-                            title="Clear date range">
-                        Clear
-                    </button>
+                        <button class="btn ghost small" type="button" @onclick="ClearDates" title="Clear date range">
+                            Clear
+                        </button>
+                    </div>
                 </div>
 
-                <select class="select" value="@PageSize" @onchange="OnPageSizeChanged" title="Rows per page">
-                    <option value="5">5 / page</option>
-                    <option value="10">10 / page</option>
-                    <option value="15">15 / page</option>
-                    <option value="20">20 / page</option>
-                </select>
+                <div class="f-pagesize">
+                    <label class="filterLabel">Rows</label>
+                    <select class="select" value="@PageSize" @onchange="OnPageSizeChanged" title="Rows per page">
+                        <option value="5">5 / page</option>
+                        <option value="10">10 / page</option>
+                        <option value="15">15 / page</option>
+                        <option value="20">20 / page</option>
+                    </select>
+                </div>
             </div>
         </div>
+
 
         @if (IsLoading)
         {
@@ -68,7 +115,7 @@
                 <div class="emptyIcon">📓</div>
                 <div>
                     <div class="emptyTitle">No matching journals</div>
-                    <div class="emptySub">Try a different title keyword or date range.</div>
+                    <div class="emptySub">Try a different title keyword, mood/tag, or date range.</div>
                 </div>
             </div>
         }
@@ -207,7 +254,6 @@
             </div>
         }
 
-        @* Export Status *@
         @if (!string.IsNullOrWhiteSpace(ExportStatus))
         {
             <div class="export-status @(ExportSuccess ? "success" : "error")">
@@ -216,7 +262,6 @@
         }
     </section>
 
-    @* Export PDF Dialog *@
     <ExportPdfDialog IsVisible="@ShowExportDialog"
                      InitialFrom="@FromDate"
                      InitialTo="@ToDate"
@@ -224,7 +269,6 @@
                      OnExported="HandleExported"
                      OnError="HandleExportError" />
 
-    @* Delete confirm (non-PIN entries) *@
     @if (ShowDeleteConfirm)
     {
         <div class="overlay" @onclick="CancelDelete">
@@ -244,7 +288,6 @@
         </div>
     }
 
-    @* PIN Prompt Modal *@
     @if (ShowPinModal)
     {
         <div class="overlay" @onclick="CancelPin">
@@ -286,7 +329,6 @@
         </div>
     }
 
-    @* Force Delete Confirm Modal *@
     @if (ShowForceDeleteConfirm)
     {
         <div class="overlay" @onclick="CloseForceDeleteConfirm">
@@ -307,19 +349,13 @@
         </div>
     }
 
-    @* Detail View Dialog *@
     <JournalDetailDialog IsVisible="@ShowDetailView"
                          Entry="@SelectedEntry"
                          OnClose="@CloseDetailView"
                          OnEditRequested="@EditFromDetailView" />
 </div>
 
-
 <style>
-    /* =========================================================
-       VIEW JOURNALS – THEME AWARE (LIGHT + DARK)
-       No hard-coded dark :root colors
-       ========================================================= */
 
     .page {
         --bg: var(--mud-palette-background);
@@ -363,14 +399,31 @@
         overflow: hidden;
     }
 
+    /* =========================
+       ✅ CLEAN HEADER LAYOUT
+       ========================= */
     .cardHeader {
         padding: 14px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
+        display: grid;
+        grid-template-columns: 260px 1fr;
+        gap: 14px;
+        align-items: start;
         flex-wrap: wrap;
         border-bottom: 1px solid var(--divider);
+        background: rgba(var(--surface-rgb), 0.65);
+    }
+
+    .headerLeft {
+        display: grid;
+        gap: 10px;
+        align-content: start;
+    }
+
+    .titleRow {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
     }
 
     .cardTitle {
@@ -392,13 +445,47 @@
         color: var(--text);
     }
 
-    /* Controls */
-    .controls {
-        display: flex;
-        gap: 10px;
+    /* Filters grid */
+    .filtersGrid {
+        display: grid;
+        grid-template-columns: 1.25fr 1fr 1fr;
+        grid-template-areas:
+            "search mood tags"
+            "dates  dates pagesize";
+        gap: 12px;
         align-items: end;
-        flex-wrap: wrap;
-        justify-content: flex-end;
+    }
+
+    .f-search {
+        grid-area: search;
+    }
+
+    .f-mood {
+        grid-area: mood;
+    }
+
+    .f-tags {
+        grid-area: tags;
+    }
+
+    .f-dates {
+        grid-area: dates;
+    }
+
+    .f-pagesize {
+        grid-area: pagesize;
+        justify-self: end;
+        width: 180px;
+    }
+
+    .filterLabel {
+        display: block;
+        font-size: 11px;
+        color: rgba(var(--muted-rgb), 0.85);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-weight: 900;
+        margin: 0 0 6px 2px;
     }
 
     /* Inputs shared */
@@ -429,12 +516,84 @@
             box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.18);
         }
 
-    /* Search width */
-    .search {
-        width: min(320px, 100%);
+    /* Search fits grid */
+    .f-search .search {
+        width: 100%;
     }
 
-    /* Date range block */
+    /* Select */
+    .select {
+        cursor: pointer;
+        width: 100%;
+    }
+
+
+    .chipWrap {
+        display: flex;
+        gap: 8px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding: 8px 10px;
+        border: 1px solid var(--divider);
+        border-radius: 12px;
+        background: rgba(var(--surface-rgb), 0.55);
+    }
+
+        .chipWrap::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .chipWrap::-webkit-scrollbar-thumb {
+            background: rgba(var(--text-rgb), 0.10);
+            border-radius: 999px;
+        }
+
+    .chip {
+        padding: 8px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--divider);
+        background: rgba(var(--surface-rgb), 0.75);
+        color: var(--text);
+        cursor: pointer;
+        font-weight: 800;
+        font-size: 12px;
+        line-height: 1;
+        user-select: none;
+        white-space: nowrap;
+        flex: 0 0 auto;
+    }
+
+        .chip:hover {
+            background: rgba(var(--surface-rgb), 0.92);
+            border-color: rgba(var(--text-rgb), 0.14);
+        }
+
+        .chip.active {
+            border-color: rgba(var(--primary-rgb), 0.45);
+            box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.16);
+            background: rgba(var(--primary-rgb), 0.10);
+        }
+
+    .chipClear {
+        padding: 8px 10px;
+        border-radius: 999px;
+        border: 1px dashed rgba(var(--text-rgb), 0.20);
+        background: transparent;
+        color: rgba(var(--muted-rgb), 0.95);
+        font-weight: 900;
+        cursor: pointer;
+        white-space: nowrap;
+        flex: 0 0 auto;
+    }
+
+        .chipClear:hover {
+            border-color: rgba(var(--text-rgb), 0.35);
+            background: rgba(var(--text-rgb), 0.04);
+        }
+
+    /* =========================
+       Date range compact
+       ========================= */
     .dateRange {
         display: flex;
         gap: 10px;
@@ -444,6 +603,17 @@
         border: 1px solid var(--divider);
         border-radius: 12px;
         background: rgba(var(--surface-rgb), 0.55);
+    }
+
+        .dateRange.compact {
+            padding: 8px 10px;
+            gap: 10px;
+        }
+
+    .rangeDash {
+        color: rgba(var(--muted-rgb), 0.75);
+        font-weight: 900;
+        padding: 0 2px;
     }
 
     .dateField {
@@ -456,11 +626,6 @@
         color: rgba(var(--muted-rgb), 0.85);
         text-transform: uppercase;
         letter-spacing: 0.12em;
-    }
-
-    /* Select */
-    .select {
-        cursor: pointer;
     }
 
     /* =========================================================
@@ -663,7 +828,12 @@
         animation: spin 0.9s linear infinite;
     }
 
-    
+    @@keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
     .empty {
         padding: 20px;
         display: grid;
@@ -887,5 +1057,27 @@
             border: 1px solid rgba(239, 68, 68, 0.4);
             color: #dc2626;
         }
-</style>
 
+
+    @@media (max-width: 980px) {
+        .cardHeader {
+            grid-template-columns: 1fr;
+        }
+
+        .filtersGrid {
+            grid-template-columns: 1fr;
+            grid-template-areas:
+                "search"
+                "mood"
+                "tags"
+                "dates"
+                "pagesize";
+        }
+
+        .f-pagesize {
+            justify-self: start;
+            width: min(220px, 100%);
+        }
+    }
+
+</style>

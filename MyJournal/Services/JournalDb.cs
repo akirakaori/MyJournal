@@ -1,4 +1,6 @@
-﻿using SQLite;
+﻿// JournalDatabases.cs  ✅ FINAL (with Mood + Tag filtering + distinct lists)
+
+using SQLite;
 using JournalMaui.Models;
 using System.Text;
 
@@ -28,18 +30,13 @@ public class JournalDatabases
             var columnNames = tableInfo.Select(x => x.name).ToList();
 
             if (!columnNames.Contains("PrimaryMood"))
-            {
                 await _db.ExecuteAsync("ALTER TABLE JournalEntries ADD COLUMN PrimaryMood TEXT NOT NULL DEFAULT ''");
-            }
 
             if (!columnNames.Contains("SecondaryMoodsCsv"))
-            {
                 await _db.ExecuteAsync("ALTER TABLE JournalEntries ADD COLUMN SecondaryMoodsCsv TEXT NOT NULL DEFAULT ''");
-            }
         }
         catch (Exception ex)
         {
-            // Log or handle migration error
             System.Diagnostics.Debug.WriteLine($"Migration error: {ex.Message}");
         }
     }
@@ -52,18 +49,13 @@ public class JournalDatabases
             var columnNames = tableInfo.Select(x => x.name).ToList();
 
             if (!columnNames.Contains("TagsCsv"))
-            {
                 await _db.ExecuteAsync("ALTER TABLE JournalEntries ADD COLUMN TagsCsv TEXT");
-            }
 
             if (!columnNames.Contains("PrimaryCategory"))
-            {
                 await _db.ExecuteAsync("ALTER TABLE JournalEntries ADD COLUMN PrimaryCategory TEXT");
-            }
         }
         catch (Exception ex)
         {
-            // Log or handle migration error
             System.Diagnostics.Debug.WriteLine($"Tag column migration error: {ex.Message}");
         }
     }
@@ -79,21 +71,20 @@ public class JournalDatabases
     {
         var k = Key(date);
         return await _db.Table<JournalEntries>()
-                  .Where(x => x.DateKey == k)
-                  .FirstOrDefaultAsync();
+                        .Where(x => x.DateKey == k)
+                        .FirstOrDefaultAsync();
     }
 
     public async Task SaveAsync(
-    DateTime date,
-    string title,
-    string content,
-    bool hasPin,
-    string? pin,
-    string primaryMood,
-    List<string> secondaryMoods,
-    string primaryCategory,
-    List<string> tags
-)
+        DateTime date,
+        string title,
+        string content,
+        bool hasPin,
+        string? pin,
+        string primaryMood,
+        List<string> secondaryMoods,
+        string primaryCategory,
+        List<string> tags)
     {
         var k = Key(date);
         var now = DateTime.Now;
@@ -171,9 +162,6 @@ public class JournalDatabases
         }
     }
 
-
-
-
     public Task<int> DeleteAsync(DateTime date)
     {
         var k = Key(date);
@@ -190,7 +178,47 @@ public class JournalDatabases
     }
 
     // ============================================================
-    // ✅ Backend filtering + date range + sorting + paging (NO LINQ Coalesce)
+    // ✅ Distinct Mood/Tag lists (for chips)
+    // ============================================================
+
+    public async Task<List<string>> GetDistinctMoodsAsync()
+    {
+        var all = await _db.Table<JournalEntries>().ToListAsync();
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var e in all)
+        {
+            if (!string.IsNullOrWhiteSpace(e.PrimaryMood))
+                set.Add(e.PrimaryMood.Trim());
+
+            if (!string.IsNullOrWhiteSpace(e.SecondaryMoodsCsv))
+            {
+                foreach (var m in e.SecondaryMoodsCsv.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                    set.Add(m.Trim());
+            }
+        }
+
+        return set.OrderBy(x => x).ToList();
+    }
+
+    public async Task<List<string>> GetDistinctTagsAsync()
+    {
+        var all = await _db.Table<JournalEntries>().ToListAsync();
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var e in all)
+        {
+            if (string.IsNullOrWhiteSpace(e.TagsCsv)) continue;
+
+            foreach (var t in e.TagsCsv.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                set.Add(t.Trim());
+        }
+
+        return set.OrderBy(x => x).ToList();
+    }
+
+    // ============================================================
+    // ✅ Backend filtering + date range + mood + tags + sorting + paging
     // ============================================================
 
     public class JournalSearchResult
@@ -203,6 +231,8 @@ public class JournalDatabases
         string? titleContains,
         DateTime? fromDate,
         DateTime? toDate,
+        IReadOnlyCollection<string>? moods,
+        IReadOnlyCollection<string>? tags,
         string sortColumn,
         bool sortAscending,
         int page,
@@ -211,17 +241,16 @@ public class JournalDatabases
         page = Math.Max(1, page);
         pageSize = Math.Max(1, pageSize);
 
-        // DateKey is yyyy-MM-dd, so lexicographic compare works for ranges.
         string? fromKey = fromDate?.Date.ToString("yyyy-MM-dd");
         string? toKey = toDate?.Date.ToString("yyyy-MM-dd");
 
-        // Whitelist sorting columns to prevent SQL injection via ORDER BY
+        // Whitelist sorting columns
         var sortColSql = sortColumn switch
         {
             nameof(JournalEntries.Title) => "Title",
             nameof(JournalEntries.UpdatedAt) => "UpdatedAt",
             nameof(JournalEntries.CreatedAt) => "CreatedAt",
-            _ => "DateKey" // default
+            _ => "DateKey"
         };
 
         var sortDirSql = sortAscending ? "ASC" : "DESC";
@@ -229,14 +258,12 @@ public class JournalDatabases
         var where = new StringBuilder(" WHERE 1=1 ");
         var args = new List<object>();
 
-        // Title filter (NULL-safe): if Title is NULL, it just won't match LIKE anyway
         if (!string.IsNullOrWhiteSpace(titleContains))
         {
             where.Append(" AND Title LIKE ? ");
             args.Add("%" + titleContains.Trim() + "%");
         }
 
-        // Date range filter
         if (!string.IsNullOrWhiteSpace(fromKey))
         {
             where.Append(" AND DateKey >= ? ");
@@ -247,6 +274,49 @@ public class JournalDatabases
         {
             where.Append(" AND DateKey <= ? ");
             args.Add(toKey!);
+        }
+
+        // ✅ Mood filter (ANY selected mood)
+        // Matches PrimaryMood OR SecondaryMoodsCsv contains the mood (CSV-safe)
+        if (moods != null && moods.Count > 0)
+        {
+            where.Append(" AND (");
+            var i = 0;
+
+            foreach (var raw in moods)
+            {
+                var m = (raw ?? "").Trim();
+                if (string.IsNullOrWhiteSpace(m)) continue;
+
+                if (i++ > 0) where.Append(" OR ");
+
+                where.Append("(PrimaryMood = ? OR (',' || IFNULL(SecondaryMoodsCsv,'') || ',') LIKE ?) ");
+                args.Add(m);
+                args.Add($"%,{m},%");
+            }
+
+            where.Append(") ");
+        }
+
+        // ✅ Tags filter (ANY selected tag)
+        // CSV-safe contains: ','||TagsCsv||',' LIKE '%,tag,%'
+        if (tags != null && tags.Count > 0)
+        {
+            where.Append(" AND (");
+            var i = 0;
+
+            foreach (var raw in tags)
+            {
+                var t = (raw ?? "").Trim();
+                if (string.IsNullOrWhiteSpace(t)) continue;
+
+                if (i++ > 0) where.Append(" OR ");
+
+                where.Append("(',' || IFNULL(TagsCsv,'') || ',') LIKE ? ");
+                args.Add($"%,{t},%");
+            }
+
+            where.Append(") ");
         }
 
         // Total count
@@ -298,4 +368,6 @@ public class JournalDatabases
 
         return entries;
     }
+
+
 }
