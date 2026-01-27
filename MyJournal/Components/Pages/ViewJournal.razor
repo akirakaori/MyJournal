@@ -25,14 +25,14 @@
                     <label class="filterLabel">Search</label>
                     <input class="search"
                            type="search"
-                           placeholder="Search by title…"
+                           placeholder="Search journals by title"
                            value="@SearchTitle"
                            @oninput="OnSearchInput" />
                 </div>
 
                 <div class="f-mood">
                     <label class="filterLabel">Mood</label>
-                    <div class="chipWrap">
+                    <div class="chipWrap chipWrap-vertical">
                         @foreach (var m in AllMoods)
                         {
                             var active = SelectedMoods.Contains(m);
@@ -51,7 +51,7 @@
 
                 <div class="f-tags">
                     <label class="filterLabel">Tags</label>
-                    <div class="chipWrap">
+                    <div class="chipWrap chipWrap-vertical">
                         @foreach (var t in AllTags)
                         {
                             var active = SelectedTags.Contains(t);
@@ -537,6 +537,8 @@
     /* Search fits grid */
     .f-search .search {
         width: 100%;
+        padding: 14px 16px; /* larger input */
+        font-size: 15px;
     }
 
     /* Select */
@@ -555,6 +557,25 @@
         border: 1px solid var(--divider);
         border-radius: 12px;
         background: rgba(var(--surface-rgb), 0.55);
+    }
+
+    /* Vertical variant: fixed height, vertical scrolling */
+    .chipWrap-vertical {
+        max-height: 120px; /* limit vertical space */
+        flex-wrap: nowrap;
+        flex-direction: column;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 6px 8px;
+    }
+
+    .chipWrap-vertical::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .chipWrap-vertical::-webkit-scrollbar-thumb {
+        background: rgba(var(--text-rgb), 0.10);
+        border-radius: 8px;
     }
 
         .chipWrap::-webkit-scrollbar {
