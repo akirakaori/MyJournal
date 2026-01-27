@@ -1,6 +1,7 @@
 ﻿@* ViewJournals.razor *@
 @page "/viewjournals"
 @using JournalMaui.Models
+@using MudBlazor
 @using System.Globalization
 
 <div class="page">
@@ -70,22 +71,38 @@
                 @* Row 2 *@
                 <div class="f-dates">
                     <label class="filterLabel">Date range</label>
-                    <div class="dateRange compact">
-                        <input class="dateInput"
-                               type="date"
-                               value="@FromDateText"
-                               @onchange="OnFromDateChanged" />
+                    <div style="position:relative;">
+                        <MudButton Variant="Variant.Outlined"
+                                   StartIcon="@Icons.Material.Filled.DateRange"
+                                   OnClick="TogglePicker"
+                                   Style="border-radius:12px; font-weight:650;">
+                            @RangeLabel
+                        </MudButton>
 
-                        <span class="rangeDash">—</span>
+                        <MudPopover Open="_pickerOpen"
+                                    AnchorOrigin="Origin.BottomRight"
+                                    TransformOrigin="Origin.TopRight">
+                            <MudPaper Class="pa-3" Elevation="8" Rounded="true" Style="min-width:360px; border-radius:14px;">
+                                <MudStack Spacing="2">
+                                    <MudText Typo="Typo.subtitle1" Style="font-weight:700;">Select date range</MudText>
 
-                        <input class="dateInput"
-                               type="date"
-                               value="@ToDateText"
-                               @onchange="OnToDateChanged" />
+                                    <MudDateRangePicker @bind-DateRange="_tempRange"
+                                                        Variant="Variant.Outlined"
+                                                        Margin="Margin.Dense"
+                                                        Editable="false"
+                                                        PickerVariant="PickerVariant.Inline"
+                                                        DateFormat="dd MMM yyyy"
+                                                        MaxDate="@DateTime.Today" />
 
-                        <button class="btn ghost small" type="button" @onclick="ClearDates" title="Clear date range">
-                            Clear
-                        </button>
+                                    <MudStack Row="true" JustifyContent="flex-end" Spacing="1">
+                                        <MudButton Variant="Variant.Text" OnClick="ClosePicker">Close</MudButton>
+                                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ApplyRange" Style="border-radius:12px;">
+                                            Apply
+                                        </MudButton>
+                                    </MudStack>
+                                </MudStack>
+                            </MudPaper>
+                        </MudPopover>
                     </div>
                 </div>
 

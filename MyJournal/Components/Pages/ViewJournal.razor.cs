@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Components;
 using JournalMaui.Services;
 using JournalMaui.Models;
+using MudBlazor;
 using MyJournal.Services;
 using System.Globalization;
 using System.Text.RegularExpressions;
@@ -177,6 +178,42 @@ public partial class ViewJournal : ComponentBase
     // Date helpers
     private string FromDateText => FromDate.HasValue ? FromDate.Value.ToString("yyyy-MM-dd") : "";
     private string ToDateText => ToDate.HasValue ? ToDate.Value.ToString("yyyy-MM-dd") : "";
+
+    // Date range picker UI state (copied from Dashboard style)
+    private DateRange _tempRange = default!;
+    private bool _pickerOpen = false;
+
+    private string RangeLabel =>
+        FromDate.HasValue && ToDate.HasValue
+            ? $"{FromDate.Value:dd MMM yyyy} → {ToDate.Value:dd MMM yyyy}"
+            : "No range selected";
+
+    private void TogglePicker()
+    {
+        // initialize temp range from current from/to
+        _tempRange = new DateRange(FromDate, ToDate);
+        _pickerOpen = !_pickerOpen;
+    }
+
+    private void ClosePicker()
+    {
+        _pickerOpen = false;
+    }
+
+    private async Task ApplyRange()
+    {
+        if (!_tempRange.Start.HasValue || !_tempRange.End.HasValue)
+        {
+            _pickerOpen = false;
+            return;
+        }
+
+        FromDate = _tempRange.Start.Value.Date;
+        ToDate = _tempRange.End.Value.Date;
+        _pickerOpen = false;
+        CurrentPage = 1;
+        await ReloadAsync();
+    }
 
     private async Task OnFromDateChanged(ChangeEventArgs e)
     {
