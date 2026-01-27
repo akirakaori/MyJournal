@@ -1,4 +1,4 @@
-@page "/profile"
+﻿@page "/profile"
 @using JournalMaui.Models
 @using JournalMaui.Services
 @using MyJournal.Services
@@ -239,8 +239,8 @@
                                            Disabled="!IsEditMode"
                                            Class="mb-3">
                                     <MudSelectItem Value="@("English")">English</MudSelectItem>
-                                    <MudSelectItem Value="@("Spanish")">Espa�ol</MudSelectItem>
-                                    <MudSelectItem Value="@("French")">Fran�ais</MudSelectItem>
+                                    <MudSelectItem Value="@("Spanish")">Español</MudSelectItem>
+                                    <MudSelectItem Value="@("French")">Français</MudSelectItem>
                                     <MudSelectItem Value="@("German")">Deutsch</MudSelectItem>
                                 </MudSelect> *@
                             </MudCardContent>
@@ -279,6 +279,7 @@
 @code {
 [Inject] private ProfileService ProfileService { get; set; } = null!;
 [Inject] private JournalDatabases JournalDb { get; set; } = null!;
+[Inject] private CalendarDb CalendarDb { get; set; } = null!;
 [Inject] private StreakService StreakService { get; set; } = null!;
 [Inject] private NotificationService NotificationService { get; set; } = null!;
 [Inject] private AppState AppState { get; set; } = null!;
@@ -534,36 +535,36 @@ private TimeSpan? _dailyReminderTime;
             _isSaving = false;
         }
     }
-
     private async Task LogoutAllDevicesAsync()
     {
         try
         {
-            // Show confirmation snackbar
             Snackbar.Add(
-                "?? This will clear ALL data and require re-registration!",
+                "⚠️ This will clear ALL local data and require re-registration!",
                 Severity.Warning);
 
-            // Simple confirmation - in production you might use a dialog
             await Task.Delay(100);
 
             _isSaving = true;
 
-            // Logout from all devices
+            // 1️⃣ Logout from backend / all devices
             await AuthService.LogoutAllDevicesAsync();
 
-            // Update app state
+            // 2️⃣ Delete all user data (atomic)
+            await ProfileService.DeleteAllUserDataAsync(JournalDb, CalendarDb);
+
+            // 3️⃣ Clear app state
             AppState.Logout();
 
-            Snackbar.Add("Logged out from all devices. Redirecting...", Severity.Success);
+            Snackbar.Add("All data cleared. Redirecting…", Severity.Success);
 
-            // Navigate to first-time setup
-            await Task.Delay(1000);
+            // 4️⃣ Redirect to first-time setup
+            await Task.Delay(800);
             NavManager.NavigateTo("/first-time-setup", forceLoad: true);
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"LogoutAllDevicesAsync error: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"LogoutAllDevicesAsync error: {ex}");
             Snackbar.Add($"Error during logout: {ex.Message}", Severity.Error);
         }
         finally

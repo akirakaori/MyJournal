@@ -111,4 +111,9 @@ public class CalendarDb
         return _db.Table<CalendarEvents>()
                   .DeleteAsync(x => x.Id == id);
     }
+
+    public async Task DeleteAllAsync()
+    {
+        await _db.DeleteAllAsync<CalendarEvents>();
+    }
 }

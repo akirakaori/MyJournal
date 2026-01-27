@@ -114,4 +114,15 @@ public class ProfileService
             return 0;
         }
     }
+
+    public async Task DeleteAllUserDataAsync(JournalDatabases journalDb, CalendarDb calendarDb)
+    {
+        // Use a transaction for atomicity
+        await _db.RunInTransactionAsync(async tran =>
+        {
+            await _db.DeleteAllAsync<UserProfile>();
+            await journalDb.DeleteAllAsync();
+            await calendarDb.DeleteAllAsync();
+        });
+    }
 }

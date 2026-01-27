@@ -351,6 +351,11 @@ public class JournalDatabases
                   .DeleteAsync(x => x.DateKey == k);
     }
 
+    public async Task DeleteAllAsync()
+    {
+        await _db.DeleteAllAsync<JournalEntries>();
+    }
+
     public async Task<List<JournalEntries>> GetRecentAsync(int take = 20)
     {
         return await _db.Table<JournalEntries>()
