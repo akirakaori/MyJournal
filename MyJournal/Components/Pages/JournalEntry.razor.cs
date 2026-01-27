@@ -392,6 +392,11 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
                 TitleInput = _lockedTitle;
                 CharacterCount = 0;
 
+                // ✅ while locked, do NOT populate PinInput
+                PinInput = "";
+                PinError = "";
+                PinMasked = true;
+
                 if (_dotNetRef is not null)
                     await JS.InvokeVoidAsync("setQuillHtml", "");
 
@@ -406,6 +411,11 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
             Content = _current.Content ?? "";
             CurrentTitle = _current.Title ?? "";
             TitleInput = CurrentTitle;
+
+            // ✅ entry is unlocked -> keep PIN in memory so Save modal can prefill
+            PinInput = _current.HasPin ? NormalizePin(_current.Pin ?? "") : "";
+            PinError = "";
+            PinMasked = true;
 
             if (_dotNetRef is not null)
                 await JS.InvokeVoidAsync("setQuillHtml", Content);
@@ -569,14 +579,21 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
         Content = await JS.InvokeAsync<string>("getQuillHtml");
         Status = "";
 
+        // Title prefill
         TitleInput = string.IsNullOrWhiteSpace(CurrentTitle) ? "" : CurrentTitle;
 
-        PinInput = "";
+        // ✅ PIN prefill (only if existing entry is unlocked)
+        if (_current is not null && _current.HasPin && PinUnlock.IsUnlocked(_current.DateKey))
+            PinInput = NormalizePin(_current.Pin ?? "");
+        else
+            PinInput = "";
+
         PinError = "";
         PinMasked = true;
 
         ShowTitleModal = true;
     }
+
 
     private void CloseTitleModal() => ShowTitleModal = false;
 
@@ -638,16 +655,19 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
             _current = await Db.GetByDateAsync(SelectedDate);
 
             CurrentTitle = _current?.Title ?? title;
-            
+
             // After save, keep the HTML content for display
             if (_current != null)
-            {
                 Content = _current.Content ?? "";
-            }
-            
+
             CreatedAt = _current?.CreatedAtDateTime;
             UpdatedAt = _current?.UpdatedAtDateTime;
             HasPin = _current?.HasPin ?? hasPin;
+
+            // ✅ keep PIN populated after save too
+            PinInput = NormalizePin(_current?.Pin ?? pinToSave ?? "");
+            PinMasked = true;
+            PinError = "";
 
             Status = "Saved.";
             Navigation.NavigateTo("/viewjournals?refresh=1");

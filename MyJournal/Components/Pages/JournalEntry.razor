@@ -175,7 +175,7 @@
                                autocomplete="off" />
 
                         <button type="button" class="pinBtn" @onclick="TogglePinMask" title="Show/Hide PIN">
-                            @((MarkupString)(PinMasked ? EyeSvg : EyeOffSvg))
+                            @(PinMasked ? "👁️" : "🙈")
                         </button>
 
                         <button type="button" class="pinBtn" @onclick="ClearPin" title="Clear PIN">
