@@ -64,7 +64,15 @@ else
     <!-- Logged In View -->
     <MudContainer Class="py-4">
         <MudPaper Elevation="0" Rounded="true" Class="home-header pa-6 mb-4">
-            <MudText Typo="Typo.h4" Class="mb-2">MyJournal.exe</MudText>
+            @if (!string.IsNullOrWhiteSpace(WelcomeName))
+            {
+                <MudText Typo="Typo.h4" Class="mb-2">Welcome, @WelcomeName 👋</MudText>
+            }
+            else
+            {
+                <MudText Typo="Typo.h4" Class="mb-2">MyJournal.exe</MudText>
+            }
+
             <MudText Typo="Typo.body1">
                 A secure daily journal with moods, tags, streaks, analytics, and PDF export — stored locally in SQLite.
             </MudText>

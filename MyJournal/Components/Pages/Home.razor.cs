@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components;
 using MudBlazor;
 using MyJournal.Services;
+using JournalMaui.Services;
 using System;
 
 namespace MyJournal.Components.Pages;
@@ -10,8 +11,10 @@ public partial class Home : ComponentBase, IDisposable
     [Inject] private NavigationManager NavManager { get; set; } = default!;
     [Inject] private AppState AppState { get; set; } = default!;
     [Inject] private AuthService AuthService { get; set; } = default!;
+    [Inject] private ProfileService ProfileService { get; set; } = default!;
 
     private bool? _userExists;
+    private string? WelcomeName;
 
     protected override async Task OnInitializedAsync()
     {
@@ -20,11 +23,36 @@ public partial class Home : ComponentBase, IDisposable
 
         // Listen to login/logout changes
         AppState.OnChange += HandleAppStateChanged;
+        if (AppState.IsLoggedIn)
+        {
+            await LoadWelcomeNameAsync();
+        }
     }
 
     private void HandleAppStateChanged()
     {
-        _ = InvokeAsync(StateHasChanged);
+        _ = InvokeAsync(async () =>
+        {
+            if (AppState.IsLoggedIn)
+                await LoadWelcomeNameAsync();
+            else
+                WelcomeName = null;
+
+            StateHasChanged();
+        });
+    }
+
+    private async Task LoadWelcomeNameAsync()
+    {
+        try
+        {
+            var name = await ProfileService.GetDisplayNameAsync();
+            WelcomeName = string.IsNullOrWhiteSpace(name) ? null : name;
+        }
+        catch
+        {
+            WelcomeName = null;
+        }
     }
 
     private void GoLogin()
