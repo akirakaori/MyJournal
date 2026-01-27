@@ -193,11 +193,11 @@
                                 
                                 <MudDivider Class="my-4" />
                                 
-                                <MudText Typo="Typo.h6" Class="mb-3">App Security</MudText>
+                                @* <MudText Typo="Typo.h6" Class="mb-3">App Security</MudText>
                                 <MudSwitch @bind-Value="ProfileData.AppLockEnabled" 
                                            Label="Enable App Lock (PIN)" 
                                            Color="Color.Primary" 
-                                           Disabled="!IsEditMode" />
+                                           Disabled="!IsEditMode" /> *@
                                 
                                 <MudDivider Class="my-4" />
                                 
@@ -209,7 +209,7 @@
                                            Color="Color.Error" 
                                            OnClick="LogoutAllDevicesAsync"
                                            Disabled="_isSaving">
-                                    Logout from All Devices
+                                    Reset All
                                 </MudButton>
                             </MudCardContent>
                         </MudTabPanel>
@@ -232,7 +232,7 @@
                                 
                                 <MudDivider Class="my-4" />
                                 
-                                <MudText Typo="Typo.h6" Class="mb-3">Language</MudText>
+                                @* <MudText Typo="Typo.h6" Class="mb-3">Language</MudText>
                                 <MudSelect @bind-Value="ProfileData.Language" 
                                            Label="Language" 
                                            Variant="Variant.Outlined" 
@@ -242,12 +242,12 @@
                                     <MudSelectItem Value="@("Spanish")">Español</MudSelectItem>
                                     <MudSelectItem Value="@("French")">Français</MudSelectItem>
                                     <MudSelectItem Value="@("German")">Deutsch</MudSelectItem>
-                                </MudSelect>
+                                </MudSelect> *@
                             </MudCardContent>
                         </MudTabPanel>
                         
                         <!-- Notifications Tab -->
-                        <MudTabPanel Text="Notifications">
+                        @* <MudTabPanel Text="Notifications">
                             <MudCardContent>
                                 <MudText Typo="Typo.h6" Class="mb-3">Daily Reminder</MudText>
                                 <MudTimePicker @bind-Time="_dailyReminderTime" 
@@ -268,7 +268,7 @@
                                     You'll receive a notification at 10 PM (2 hours before midnight) if you haven't journaled today.
                                 </MudText>
                             </MudCardContent>
-                        </MudTabPanel>
+                        </MudTabPanel> *@
                     </MudTabs>
                 </MudCard>
             </MudItem>
