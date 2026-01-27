@@ -13,6 +13,13 @@ public partial class Home : ComponentBase, IDisposable
     [Inject] private AuthService AuthService { get; set; } = default!;
     [Inject] private ProfileService ProfileService { get; set; } = default!;
 
+    [Inject] private JournalDatabases JournalDb { get; set; } = default!;
+    [Inject] private StreakService StreakService { get; set; } = default!;
+
+    // UI data
+    private JournalMaui.Models.StreakResult? streakData;
+    private List<JournalMaui.Models.JournalEntries> RecentEntries = new();
+
     private bool? _userExists;
     private string? WelcomeName;
 
@@ -26,6 +33,7 @@ public partial class Home : ComponentBase, IDisposable
         if (AppState.IsLoggedIn)
         {
             await LoadWelcomeNameAsync();
+            await LoadDashboardDataAsync();
         }
     }
 
@@ -34,7 +42,10 @@ public partial class Home : ComponentBase, IDisposable
         _ = InvokeAsync(async () =>
         {
             if (AppState.IsLoggedIn)
+            {
                 await LoadWelcomeNameAsync();
+                await LoadDashboardDataAsync();
+            }
             else
                 WelcomeName = null;
 
@@ -52,6 +63,29 @@ public partial class Home : ComponentBase, IDisposable
         catch
         {
             WelcomeName = null;
+        }
+    }
+
+    private async Task LoadDashboardDataAsync()
+    {
+        try
+        {
+            streakData = await StreakService.CalculateStreaksAsync();
+
+            var recent = await JournalDb.GetRecentAsync(50);
+            if (recent != null)
+            {
+                RecentEntries = recent.OrderByDescending(r => r.DateKey).Take(7).ToList();
+            }
+            else
+            {
+                RecentEntries = new();
+            }
+        }
+        catch
+        {
+            streakData = null;
+            RecentEntries = new();
         }
     }
 

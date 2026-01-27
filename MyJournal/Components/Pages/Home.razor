@@ -62,7 +62,7 @@
 else
 {
     <!-- Logged In View -->
-    <MudContainer Class="py-4">
+    <MudContainer Class="py-4 home-dashboard-root">
         <MudPaper Elevation="0" Rounded="true" Class="home-header pa-6 mb-4">
             @if (!string.IsNullOrWhiteSpace(WelcomeName))
             {
@@ -77,7 +77,86 @@ else
                 A secure daily journal with moods, tags, streaks, analytics, and PDF export — stored locally in SQLite.
             </MudText>
         </MudPaper>
-        <StreakSummary />
+        <!-- Summary cards -->
+        <MudGrid Class="summary-grid" Spacing="3">
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Class="summary-card summary-card--blue pa-4" Elevation="1">
+                    <div class="d-flex align-center">
+                        <div class="summary-badge">
+                            <MudIcon Icon="@Icons.Material.Filled.LocalFireDepartment" />
+                        </div>
+                        <div class="ms-3 flex-grow-1">
+                            <MudText Class="summary-value" Typo="Typo.h4">@((streakData != null) ? streakData.CurrentStreak.ToString() : "—")</MudText>
+                            <MudText Class="summary-title" Typo="Typo.subtitle2">Current Streak</MudText>
+                        </div>
+                    </div>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Class="summary-card summary-card--pink pa-4" Elevation="1">
+                    <div class="d-flex align-center">
+                        <div class="summary-badge">
+                            <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" />
+                        </div>
+                        <div class="ms-3 flex-grow-1">
+                            <MudText Class="summary-value" Typo="Typo.h4">@((streakData != null) ? streakData.LongestStreak.ToString() : "—")</MudText>
+                            <MudText Class="summary-title" Typo="Typo.subtitle2">Longest Streak</MudText>
+                        </div>
+                    </div>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Class="summary-card summary-card--yellow pa-4" Elevation="1">
+                    <div class="d-flex align-center">
+                        <div class="summary-badge">
+                            <MudIcon Icon="@Icons.Material.Filled.EventBusy" />
+                        </div>
+                        <div class="ms-3 flex-grow-1">
+                            <MudText Class="summary-value" Typo="Typo.h4">@((streakData != null) ? streakData.MissedDays.ToString() : "—")</MudText>
+                            <MudText Class="summary-title" Typo="Typo.subtitle2">Missed Days</MudText>
+                        </div>
+                    </div>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        <!-- Recent entries -->
+        <MudPaper Elevation="0" Class="mt-4 pa-4 entry-list-root">
+            <MudText Typo="Typo.h6" Class="mb-3">My Notes</MudText>
+
+            <div class="entry-list">
+                @if (RecentEntries == null || RecentEntries.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Class="text-muted">No recent entries</MudText>
+                }
+                else
+                {
+                    @for (int i = 0; i < RecentEntries.Count; i++)
+                    {
+                        var e = RecentEntries[i];
+                        var variant = (i % 3) == 0 ? "entry-tile--blue" : ((i % 3) == 1 ? "entry-tile--pink" : "entry-tile--yellow");
+                        <MudPaper Class=@($"entry-tile entry-tile--pastel mb-3 {variant}") Elevation="0" Rounded="true" @onclick='() => NavManager.NavigateTo(string.Concat("/journalentry?date=", e.DateKey))'>
+                            <div class="d-flex align-center justify-space-between">
+                                <div class="d-flex align-center">
+                                    <div class="entry-badge me-3">
+                                        <MudIcon Icon="@Icons.Material.Filled.Description" />
+                                    </div>
+                                    <div>
+                                        <div class="entry-title">@((string.IsNullOrWhiteSpace(e.Title)) ? "Untitled" : e.Title)</div>
+                                        <div class="entry-date">@e.DateKey</div>
+                                    </div>
+                                </div>
+                                <div class="entry-actions">
+                                    <MudIcon Icon="@Icons.Material.Filled.MoreVert" />
+                                </div>
+                            </div>
+                        </MudPaper>
+                    }
+                }
+            </div>
+        </MudPaper>
     </MudContainer>
 }
 
