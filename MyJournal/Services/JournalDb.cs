@@ -254,6 +254,11 @@ public class JournalDatabases
                         .FirstOrDefaultAsync();
     }
 
+    public async Task<JournalEntries?> GetByDateKeyAsync(string dateKey)
+    {
+        return await _db.Table<JournalEntries>().Where(x => x.DateKey == dateKey).FirstOrDefaultAsync();
+    }
+
     public async Task SaveAsync(
         DateTime date,
         string title,

@@ -1,5 +1,7 @@
 @using MyJournal.Services
+@using JournalMaui.Models
 @inject PdfExportService PdfExportService
+@inject AuthService AuthService
 
 @if (IsVisible)
 {
@@ -17,6 +19,39 @@
                         <div class="spinner"></div>
                         <p>Exporting PDF...</p>
                     </div>
+                }
+                else if (ShowPinModal)
+                {
+                    <div class="alert alert-info mb-2">
+                        @if (LockedCount == 1)
+                        {
+                            <span>1 journal is locked. Enter your login PIN to unlock it for export, or exclude locked journals.</span>
+                        }
+                        else
+                        {
+                            <span>@LockedCount journals are locked. Enter your login PIN to unlock them for export, or exclude locked journals.</span>
+                        }
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" @bind="ExcludeLocked" /> Exclude locked journals</label>
+                    </div>
+                    @if (!ExcludeLocked)
+                    {
+                        <div class="form-group">
+                            <input type="password"
+                                   maxlength="4"
+                                   class="form-control"
+                                   @bind="PinInput"
+                                   @onkeydown="HandlePinKeyDown"
+                                   placeholder="Enter PIN"
+                                   autofocus
+                                   disabled="@IsExporting" />
+                        </div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(PinError))
+                    {
+                        <div class="alert alert-error">@PinError</div>
+                    }
                 }
                 else
                 {
@@ -51,7 +86,18 @@
                 @if (!IsExporting)
                 {
                     <button class="btn btn-secondary" @onclick="Cancel">Cancel</button>
-                    <button class="btn btn-primary" @onclick="ExportPdf">Export PDF</button>
+                    @if (ShowPinModal)
+                    {
+                        <button class="btn btn-primary"
+                                @onclick="ContinueExportWithPin"
+                                disabled="@(IsExporting || (!ExcludeLocked && string.IsNullOrWhiteSpace(PinInput)))">
+                            Continue
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-primary" @onclick="ExportPdf">Export PDF</button>
+                    }
                 }
             </div>
         </div>
@@ -72,6 +118,15 @@
     private string Message { get; set; } = string.Empty;
     private bool IsError { get; set; } = false;
 
+    // Enhanced export state
+    private bool ShowPinModal { get; set; } = false;
+    private string PinInput { get; set; } = "";
+    private string PinError { get; set; } = "";
+    private bool ExcludeLocked { get; set; } = false;
+    private int LockedCount { get; set; } = 0;
+    private List<JournalEntries> ExportSelection { get; set; } = new();
+    private List<JournalEntries> LockedJournals { get; set; } = new();
+
     protected override void OnParametersSet()
     {
         if (IsVisible)
@@ -82,6 +137,10 @@
             Message = string.Empty;
             IsError = false;
             IsExporting = false;
+            ShowPinModal = false;
+            PinInput = "";
+            PinError = "";
+            ExcludeLocked = false;
         }
     }
 
@@ -105,22 +164,142 @@
             return;
         }
 
+        // Fetch entries in range
+        ExportSelection = await PdfExportService.GetEntriesForExportAsync(StartDate, EndDate);
+        LockedJournals = ExportSelection.Where(j => j.HasPin).ToList();
+        LockedCount = LockedJournals.Count;
+
+        if (LockedCount == 0)
+        {
+            await DoExport(ExportSelection);
+            return;
+        }
+
+        // Show PIN modal
+        ShowPinModal = true;
+        PinInput = "";
+        PinError = "";
+        ExcludeLocked = false;
+    }
+
+    private void ClosePinModal()
+    {
+        ShowPinModal = false;
+        PinInput = "";
+        PinError = "";
+    }
+
+    private async Task ContinueExportWithPin()
+    {
+        if (ExcludeLocked)
+        {
+            var unlocked = ExportSelection.Where(j => !j.HasPin).ToList();
+            await DoExport(unlocked);
+            ShowPinModal = false;
+            Message = "Locked journals excluded.";
+            IsError = false;
+            StateHasChanged();
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(PinInput))
+            return;
+
         IsExporting = true;
         StateHasChanged();
 
         try
         {
-            string filePath = await PdfExportService.ExportEntriesToPdfAsync(StartDate, EndDate);
-            
+            var unlockedForExport = await UnlockJournalsForExportAsync(ExportSelection, PinInput);
+            await DoExport(unlockedForExport);
+            ShowPinModal = false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            PinError = "Incorrect PIN";
+        }
+        catch (Exception)
+        {
+            PinError = "Failed to unlock journals for export.";
+        }
+        finally
+        {
+            IsExporting = false;
+            PinInput = "";
+            StateHasChanged();
+        }
+    }
+
+    // Helper: unlock and sanitize journals for export
+    private async Task<List<JournalEntries>> UnlockJournalsForExportAsync(List<JournalEntries> journals, string pin)
+    {
+        var unlocked = new List<JournalEntries>();
+        var username = await AuthService.GetUsernameAsync();
+        bool isValid = await AuthService.ValidateCredentialsAsync(username, pin);
+        if (!isValid)
+            throw new UnauthorizedAccessException("Incorrect PIN");
+
+        foreach (var journal in journals)
+        {
+            if (journal.HasPin)
+            {
+                // Fetch full unlocked content (simulate unlock for export)
+                var full = await PdfExportService.GetFullJournalByDateKeyAsync(journal.DateKey);
+                if (full == null)
+                    throw new Exception("Failed to unlock a locked journal for export.");
+                unlocked.Add(SanitizeJournalForExport(full));
+            }
+            else
+            {
+                unlocked.Add(SanitizeJournalForExport(journal));
+            }
+        }
+        return unlocked;
+    }
+
+    // Remove lock metadata for export
+    private JournalEntries SanitizeJournalForExport(JournalEntries journal)
+    {
+        return new JournalEntries
+        {
+            Id = journal.Id,
+            DateKey = journal.DateKey,
+            Title = journal.Title,
+            Content = journal.Content,
+            PrimaryMood = journal.PrimaryMood,
+            SecondaryMoodsCsv = journal.SecondaryMoodsCsv,
+            TagsCsv = journal.TagsCsv,
+            PrimaryCategory = journal.PrimaryCategory,
+            CreatedAtText = journal.CreatedAtText,
+            UpdatedAtText = journal.UpdatedAtText,
+            HasPin = false,
+            Pin = null
+        };
+    }
+
+    private async Task HandlePinKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && (!ExcludeLocked && !string.IsNullOrWhiteSpace(PinInput)))
+        {
+            await ContinueExportWithPin();
+        }
+    }
+
+    private async Task DoExport(List<JournalEntries> journals)
+    {
+        try
+        {
+            IsExporting = true;
+            StateHasChanged();
+
+            string filePath = await PdfExportService.ExportEntriesToPdfAsync(journals, StartDate, EndDate);
+
             Message = $"PDF exported successfully to: {filePath}";
             IsError = false;
             IsExporting = false;
             StateHasChanged();
 
-            // Wait a moment to show success message
             await Task.Delay(1500);
-
-            // Invoke callbacks
             await OnExported.InvokeAsync(filePath);
             await OnClose.InvokeAsync();
         }
@@ -130,8 +309,6 @@
             IsError = true;
             IsExporting = false;
             StateHasChanged();
-
-            // Invoke error callback
             await OnError.InvokeAsync(ex.Message);
         }
     }

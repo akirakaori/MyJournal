@@ -63,6 +63,42 @@ public class PdfExportService
         }
     }
 
+    public async Task<string> ExportEntriesToPdfAsync(List<JournalEntries> entries, DateTime startDate, DateTime endDate)
+    {
+        if (entries == null || entries.Count == 0)
+            throw new InvalidOperationException("No journal entries to export.");
+
+        var sortedEntries = entries.OrderBy(e => e.DateKey).ToList();
+        string exportFolder = GetExportFolder();
+        Directory.CreateDirectory(exportFolder);
+
+        string fileName = $"Journal_Export_{startDate:yyyy-MM-dd}_to_{endDate:yyyy-MM-dd}.pdf";
+        string filePath = Path.Combine(exportFolder, fileName);
+
+        if (File.Exists(filePath))
+            File.Delete(filePath);
+
+        GeneratePdf(sortedEntries, filePath, startDate, endDate);
+
+        if (!File.Exists(filePath))
+            throw new IOException($"PDF file was not created at {filePath}");
+
+        return filePath;
+    }
+
+    // Helper to get entries for export
+    public async Task<List<JournalEntries>> GetEntriesForExportAsync(DateTime startDate, DateTime endDate)
+    {
+        return await _db.GetEntriesByDateRangeAsync(startDate, endDate);
+    }
+
+    // Fetch full unlocked journal by DateKey (for export)
+    public async Task<JournalEntries?> GetFullJournalByDateKeyAsync(string dateKey)
+    {
+        // No PIN check here; PIN is already validated in the dialog
+        return await _db.GetByDateKeyAsync(dateKey);
+    }
+
     private string GetExportFolder()
     {
         // Try to save to Documents folder on Windows for visibility
