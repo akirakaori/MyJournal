@@ -329,36 +329,48 @@
     margin-top: 2px;
 }
 
-/* Journal Entry Card Styles */
-.journal-entry-card {
-    background: #FDE2E4;
-    border-radius: 22px;
-    padding: 16px 18px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    cursor: pointer;
-    transition: box-shadow 0.15s;
-}
-.journal-entry-card:hover {
-    box-shadow: 0 6px 18px rgba(16,24,40,0.10);
-}
-.journal-entry-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-weight: 700;
-    font-size: 1.1rem;
-}
-.journal-entry-emoji {
-    font-size: 1.2em;
-}
-.journal-entry-title {
-    font-weight: 700;
-}
-.journal-entry-date {
-    font-size: 0.95rem;
-    color: #888;
-    margin-top: 2px;
+/* DARK THEME SUPPORT */
+@media (prefers-color-scheme: dark) {
+  .streak-section-heading {
+    color: #f7f7f7;
+  }
+  .streak-section-cards {
+    /* no change needed */
+  }
+  .streak-card,
+  .streak-card--yellow {
+    background: #23231a;
+    color: #ffe066;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+    border: 1px solid #39391f;
+  }
+  .streak-emoji {
+    filter: drop-shadow(0 1px 2px #0008);
+  }
+  .streak-label {
+    color: #ffe066;
+  }
+  .streak-value {
+    color: #ffe066;
+    text-shadow: 0 1px 2px #0008;
+  }
+
+  .journal-entry-card {
+    background: #2a2326;
+    color: #ffe2e4;
+    border: 1px solid #3a2a2c;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  }
+  .journal-entry-card:hover {
+    box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+  }
+  .journal-entry-row {
+    color: #ffe2e4;
+  }
+  .journal-entry-title {
+    color: #ffe2e4;
+  }
+  .journal-entry-date {
+    color: #bfa6b0;
+  }
 }
