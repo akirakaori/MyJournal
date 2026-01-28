@@ -54,6 +54,9 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
     private string CreatedAtText => CreatedAt?.ToString("yyyy-MM-dd HH:mm") ?? "-";
     private string UpdatedAtText => UpdatedAt?.ToString("yyyy-MM-dd HH:mm") ?? "-";
 
+    // Validation error for Title input
+    private string TitleError = string.Empty;
+
     // ---------------------------
     // Tags
     // ---------------------------
@@ -601,16 +604,19 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
     {
         if (IsLocked) return;
 
+        TitleError = "";
+        MoodError = "";
+
         var title = (TitleInput ?? "").Trim();
         if (string.IsNullOrWhiteSpace(title))
         {
-            Status = "Please enter a title before saving.";
+            TitleError = "You must select the title.";
             return;
         }
 
         if (string.IsNullOrWhiteSpace(PrimaryMood))
         {
-            Status = "Please select a primary mood.";
+            MoodError = "You must select the primary mood.";
             return;
         }
 
@@ -621,7 +627,6 @@ public partial class JournalEntry : ComponentBase, IAsyncDisposable
             return;
         }
 
-        ShowTitleModal = false;
         await SaveWithTitleAsync(title, pin);
     }
 

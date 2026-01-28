@@ -153,14 +153,18 @@
             </div>
 
             <div class="modalBody">
-                <div class="modalField">
-                    <label class="modalLabel">Title</label>
-                    <input class="modalInput"
-                           @bind="TitleInput"
-                           @bind:event="oninput"
-                           placeholder="e.g., My day, Study notes, Goals..."
-                           @onkeydown="HandleTitleKeyDown" />
-                </div>
+				<div class="modalField">
+					<label class="modalLabel">Title</label>
+					<input class="modalInput"
+					       @bind="TitleInput"
+					       @bind:event="oninput"
+					       placeholder="e.g., My day, Study notes, Goals..."
+					       @onkeydown="HandleTitleKeyDown" />
+					@if (!string.IsNullOrWhiteSpace(TitleError))
+					{
+						<div class="pinError">@TitleError</div>
+					}
+				</div>
 
                 <div class="modalField pinField">
                     <label class="modalLabel">PIN (optional)</label>
@@ -224,6 +228,10 @@
                             </button>
                         }
                     </div>
+                    @if (!string.IsNullOrWhiteSpace(MoodError))
+                    {
+                        <div class="pinError">@MoodError</div>
+                    }
                 </div>
 
                 <div class="modalField moodSection">
